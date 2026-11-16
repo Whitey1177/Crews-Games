@@ -68,9 +68,9 @@ button:active{transform:translateY(3px);box-shadow:0 1px 0 #c46f00}
 </div></div>
 
 <script>
-// ---- Crew leaderboard widget (talks to the Netlify function) ----
+// ---- Crew leaderboard widget (talks to /api/scores) ----
 const CrewBoard = (() => {
-  const API = '/.netlify/functions/scores';
+  const API = '/api/scores';
   const getName = () => { try { return localStorage.getItem('crew-player-name') || ''; } catch(e){ return ''; } };
   const setName = n => { try { localStorage.setItem('crew-player-name', n); } catch(e){} };
   const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

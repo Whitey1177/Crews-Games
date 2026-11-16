@@ -138,9 +138,9 @@ html,body{height:100%;background:#1d2a44;font-family:ui-rounded,"SF Pro Rounded"
 <div id="toast"></div>
 
 <script>
-// ---- Crew leaderboard widget (talks to the Netlify function) ----
+// ---- Crew leaderboard widget (talks to /api/scores) ----
 const CrewBoard = (() => {
-  const API = '/.netlify/functions/scores';
+  const API = '/api/scores';
   const getName = () => { try { return localStorage.getItem('crew-player-name') || ''; } catch(e){ return ''; } };
   const setName = n => { try { localStorage.setItem('crew-player-name', n); } catch(e){} };
   const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

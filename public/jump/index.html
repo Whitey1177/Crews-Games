@@ -92,9 +92,9 @@ header{width:100%;max-width:440px;display:flex;justify-content:space-between;ali
 </div></div>
 
 <script>
-// ---- Crew leaderboard widget (talks to the Netlify function) ----
+// ---- Crew leaderboard widget (talks to /api/scores) ----
 const CrewBoard = (() => {
-  const API = '/.netlify/functions/scores';
+  const API = '/api/scores';
   const getName = () => { try { return localStorage.getItem('crew-player-name') || ''; } catch(e){ return ''; } };
   const setName = n => { try { localStorage.setItem('crew-player-name', n); } catch(e){} };
   const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -244,7 +244,7 @@ cv.addEventListener('pointerup', lift); cv.addEventListener('pointercancel', lif
 addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowLeft' || e.key === 'a') keyL = true; if (e.key === 'ArrowRight' || e.key === 'd') keyR = true; if (e.key === ' ' && state !== 'play') startGame(); });
 addEventListener('keyup', e => { if (e.key === 'ArrowLeft' || e.key === 'a') keyL = false; if (e.key === 'ArrowRight' || e.key === 'd') keyR = false; });
 
-// Tilt (works when the page is opened directly in Safari, e.g. from your Netlify link)
+// Tilt (works when the page is opened directly in Safari, e.g. from your website link)
 if (window.DeviceOrientationEvent) $('tiltBtn').style.display = 'inline-block';
 $('tiltBtn').onclick = async () => {
   try {
