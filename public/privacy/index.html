@@ -119,7 +119,10 @@ button{font:inherit;font-weight:700;background:#ff8a3d;color:#fff;border:none;bo
 //   { v, at, adult, personalizedAds }  — ad code must check personalizedAds before requesting personalized ads.
 const CrewConsent = (() => {
   const KEY = 'crew-consent', VERSION = 1;
-  const BASE = (() => { const p = location.pathname; return /\/(merge|jump|adventure|privacy)\/?/.test(p) ? '../' : './'; })();
+  const BASE = (() => {   // privacy page lives on the website; use a full link when the game runs somewhere else (e.g. a Claude preview)
+    const onSite = /pages\.dev$/.test(location.hostname) || !!window.ReactNativeWebView;
+    if (!onSite) return 'https://crews-games.pages.dev/';
+    const p = location.pathname; return /\/(merge|jump|adventure|privacy)\/?/.test(p) ? '../' : './'; })();
   const get = () => { try { const c = JSON.parse(localStorage.getItem(KEY)); return c && c.v === VERSION ? c : null; } catch(e){ return null; } };
   const set = c => { try { localStorage.setItem(KEY, JSON.stringify({...c, v: VERSION, at: new Date().toISOString()})); } catch(e){} };
   let el = null;
