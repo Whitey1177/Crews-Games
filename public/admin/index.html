@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Pup Slope · Admin</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:ui-rounded,"SF Pro Rounded",-apple-system,system-ui,sans-serif;background:#fdf1dc;color:#3b2a1e}
+main{max-width:520px;margin:0 auto;padding:20px 14px 60px}
+h1{font-size:24px;margin:4px 0 2px}
+.sub{opacity:.7;font-weight:700;font-size:13px;margin-bottom:14px}
+.card{background:#fff;border-radius:18px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,.08);margin-bottom:14px}
+input{font:inherit;font-size:16px;width:100%;padding:11px 12px;border:2.5px solid #ffd6ad;border-radius:12px;outline:none}
+input:focus{border-color:#ff8a3d}
+button{font:inherit;font-weight:900;border:none;border-radius:12px;padding:10px 14px;cursor:pointer}
+.pri{background:#ff8a3d;color:#fff;width:100%;margin-top:10px;font-size:16px}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;background:#eee4da;color:#6b5040;border-radius:999px;padding:7px 12px;font-size:13.5px}
+.tab.on{background:#ff8a3d;color:#fff}
+.tab .c{opacity:.7;font-weight:800;margin-left:4px}
+.row{display:flex;align-items:center;gap:8px;padding:9px 2px;border-bottom:1px solid #f3e8da}
+.row:last-child{border-bottom:none}
+.rk{width:30px;font-weight:900;opacity:.55}
+.nm{flex:1;font-weight:800;word-break:break-word}
+.sc{font-weight:900;white-space:nowrap}
+.dt{font-size:11px;opacity:.55;font-weight:700}
+.del{background:#ffe3e3;color:#c62828;padding:7px 10px}
+.ban{background:#fff3e0;color:#8a5a24;padding:6px 10px;font-size:13px}
+.empty{opacity:.6;font-weight:700;padding:10px 2px}
+.msg{font-weight:800;font-size:14px;margin-top:8px;min-height:1.2em}
+.err{color:#c62828}.ok{color:#2e7d32}
+.top{display:flex;justify-content:space-between;align-items:center}
+.lo{background:none;color:#a0703a;text-decoration:underline;padding:4px}
+.chk{display:flex;gap:8px;align-items:center;font-weight:800;font-size:14px;margin-top:8px}
+.chk input{width:18px;height:18px}
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><div><h1>🛠️ Leaderboard admin</h1><div class="sub">Pup Slope · only you can use this page</div></div><button class="lo" id="logout" style="display:none">Log out</button></div>
+
+  <div class="card" id="login">
+    <b>Admin password</b>
+    <input id="pw" type="password" autocomplete="current-password" placeholder="Your ADMIN_KEY" style="margin-top:8px">
+    <button class="pri" id="go">Unlock</button>
+    <div class="msg" id="lmsg"></div>
+  </div>
+
+  <div id="panel" style="display:none">
+    <div class="card">
+      <div class="tabs" id="tabs"></div>
+      <label class="chk"><input type="checkbox" id="banToo" checked> Also ban the name, so it can't be posted again</label>
+      <div class="msg" id="msg"></div>
+      <div id="list"></div>
+    </div>
+    <div class="card">
+      <b>🚫 Banned names</b>
+      <div id="banned"></div>
+    </div>
+  </div>
+</main>
+<script>
+const DOGS = {crew:'Crew', dixie:'Dixie', winnie:'Winnie', penny:'Penny', rufus:'Rufus', scout:'Scout', gracie:'Gracie', casey:'Casey'};
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let key = sessionStorage.getItem('pupslope-admin') || '', data = null, dog = 'crew';
+
+async function api(method, body){
+  const r = await fetch('/api/admin', {method, headers: {'x-admin-key': key, ...(body ? {'content-type': 'application/json'} : {})}, body: body ? JSON.stringify(body) : undefined});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || 'Something went wrong'), {status: r.status});
+  return j;
+}
+async function load(){
+  try {
+    data = await api('GET');
+    sessionStorage.setItem('pupslope-admin', key);
+    $('login').style.display = 'none'; $('panel').style.display = 'block'; $('logout').style.display = 'block';
+    render();
+  } catch(e){
+    $('login').style.display = 'block'; $('panel').style.display = 'none';
+    $('lmsg').innerHTML = `<span class="err">${esc(e.message)}</span>`;
+    if (e.status === 401) sessionStorage.removeItem('pupslope-admin');
+  }
+}
+function render(){
+  $('tabs').innerHTML = Object.entries(DOGS).map(([id, n]) => `<button class="tab${id === dog ? ' on' : ''}" data-d="${id}">${n}<span class="c">${(data.boards[id] || []).length}</span></button>`).join('');
+  document.querySelectorAll('.tab').forEach(b => b.onclick = () => { dog = b.dataset.d; $('msg').textContent = ''; render(); });
+  const list = data.boards[dog] || [];
+  $('list').innerHTML = list.length ? list.map((e, i) => `<div class="row"><span class="rk">${i + 1}.</span><span class="nm">${esc(e.name)}<div class="dt">${e.at ? new Date(e.at).toLocaleString() : ''}</div></span><span class="sc">${Number(e.score).toLocaleString()} m</span><button class="del" data-n="${esc(e.name)}" aria-label="Remove">🗑️</button></div>`).join('')
+                                  : `<div class="empty">No scores on ${DOGS[dog]}'s board yet.</div>`;
+  document.querySelectorAll('.del').forEach(b => b.onclick = async () => {
+    const name = b.dataset.n, ban = $('banToo').checked;
+    if (!confirm(`Remove "${name}" from ${DOGS[dog]}'s leaderboard${ban ? ' and ban the name' : ''}?`)) return;
+    try { const r = await api('POST', {action: 'delete', game: 'adventure-m-' + dog, name, ban}); data.boards[dog] = list.filter(e => e.name !== name); data.banned = r.banned; $('msg').innerHTML = `<span class="ok">Removed ${esc(name)}${ban ? ' and banned the name' : ''}.</span>`; render(); }
+    catch(e){ $('msg').innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  });
+  $('banned').innerHTML = data.banned.length ? data.banned.map(n => `<div class="row"><span class="nm">${esc(n)}</span><button class="ban" data-n="${esc(n)}">Unban</button></div>`).join('') : '<div class="empty">Nobody is banned.</div>';
+  document.querySelectorAll('.ban').forEach(b => b.onclick = async () => {
+    try { const r = await api('POST', {action: 'unban', name: b.dataset.n}); data.banned = r.banned; render(); } catch(e){ alert(e.message); }
+  });
+}
+$('go').onclick = () => { key = $('pw').value.trim(); $('lmsg').textContent = 'Checking…'; load(); };
+$('pw').addEventListener('keydown', e => { if (e.key === 'Enter') $('go').click(); });
+$('logout').onclick = () => { sessionStorage.removeItem('pupslope-admin'); key = ''; data = null; $('pw').value = ''; $('lmsg').textContent = ''; $('panel').style.display = 'none'; $('login').style.display = 'block'; $('logout').style.display = 'none'; };
+if (key) load();
+</script>
+</body>
+</html>

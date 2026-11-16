@@ -16,3 +16,8 @@ Pup Slope (dog snowboarding game, starring Crew) with a global leaderboard, plus
 - `GET /api/scores?game=adventure-m` → top 10
 - `POST /api/scores` with `{ "game": "adventure-m", "name": "Crew", "score": 1234 }`
 Boards: `merge`, `jump`, `adventure`, `adventure-m`. Each name keeps its best score; the top 100 are stored.
+
+## Leaderboard admin
+- Page: `/admin/` (not linked anywhere, hidden from search engines).
+- Password: a Cloudflare secret named `ADMIN_KEY` (Settings → Variables and Secrets). The password is never stored in this repo.
+- Remove names from any dog's board and optionally ban them; banned names can't be posted again.

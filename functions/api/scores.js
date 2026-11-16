@@ -5,7 +5,8 @@
 // (Cloudflare dashboard → your Pages project → Settings → Bindings → KV namespace).
 
 const GAMES = { merge: 2_000_000, jump: 2_000_000, adventure: 20_000_000, "adventure-m": 200_000 }; // max believable value per board
-for (const dog of ["crew", "dixie", "winnie", "penny", "rufus", "scout", "gracie", "casey", "duck"]) GAMES["adventure-m-" + dog] = 200_000; // Crew's Adventure: one distance board per character
+export const DOGS = ["crew", "dixie", "winnie", "penny", "rufus", "scout", "gracie", "casey"];
+for (const dog of [...DOGS, "duck"]) GAMES["adventure-m-" + dog] = 200_000; // Pup Slope: one distance board per dog
 const KEEP = 100;
 const BLOCK = ["fuck", "shit", "bitch", "cunt", "nigg", "fag", "slut", "whore", "cock", "pussy", "rape", "nazi"];
 
@@ -41,6 +42,7 @@ export async function onRequest({ request, env }) {
     const name = cleanName(body?.name);
     if (name.length < 1) return json({ error: "Please enter a name" }, 400);
     if (isRude(name)) return json({ error: "Please pick a different name" }, 400);
+    try { if (JSON.parse((await kv.get("banned")) || "[]").includes(name.toLowerCase())) return json({ error: "Please pick a different name" }, 400); } catch {}
     const score = Math.floor(Number(body?.score));
     if (!Number.isFinite(score) || score < 0 || score > GAMES[game]) return json({ error: "That score doesn't look right" }, 400);
 
