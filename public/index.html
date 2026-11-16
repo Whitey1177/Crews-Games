@@ -186,8 +186,8 @@ const CrewBoard = (() => {
     el.innerHTML = `<h3>🏆 ${esc(opts.title || 'Leaderboard')}</h3>
       ${boards.length ? `<div class="lbchips">${boards.map(b => `<button class="lbchip${b.id === game ? ' on' : ''}" data-b="${b.id}">${esc(b.label)}</button>`).join('')}</div>` : ''}
       <div class="row"${score > 0 ? '' : ' style="display:none"'}><input maxlength="14" placeholder="Your name" autocomplete="nickname" enterkeyhint="send"><button>Post</button></div>
-      <div class="lbnote" style="font-size:11.5px;opacity:.7;margin:2px 0 4px">Your nickname &amp; score are public. Don't use your real name.</div>
-      <div class="msg"></div><ol><li><span class="n">Loading…</span></li></ol>`;
+      <div class="lbnote" style="font-size:11.5px;opacity:.7;margin:2px 0 4px${score > 0 ? '' : ';display:none'}">Your nickname &amp; score are public. Don't use your real name.</div>
+      <div class="msg">${opts.note ? esc(opts.note) : ''}</div><ol><li><span class="n">Loading…</span></li></ol>`;
     const input = el.querySelector('input'), btn = el.querySelector('.row button'), msg = el.querySelector('.msg'), row = el.querySelector('.row');
     input.value = getName();
     ['pointerdown','touchstart','keydown','keyup'].forEach(ev => el.addEventListener(ev, e => e.stopPropagation()));
@@ -814,7 +814,7 @@ function renderDogRow(gid, pid){
     b.className = 'dog' + (id === skinId ? ' on' : '');
     const c = document.createElement('canvas'); b.appendChild(c);
     const bm = bestOf(id); b.insertAdjacentHTML('beforeend', `<div class="dn">${S.short || S.name}</div><div class="dp">${S.icon} ${S.power}</div><div class="db">${bm ? '🏆 ' + bm.toLocaleString() + ' m' : '—'}</div>`);
-    b.onclick = () => { skinId = id; save('crewadv-skin', id); tone(600, 900, .08, 'triangle', .07); renderDogs(); showBest(); ensureAudio(); Music.restart(); };
+    b.onclick = () => { skinId = id; save('crewadv-skin', id); tone(600, 900, .08, 'triangle', .07); renderDogs(); showBest(); ensureAudio(); Music.restart(); if (state === 'over') showRunBoard(); };
     g.appendChild(b);
     preview(c, gear.hat, gear.board, id);
   }
@@ -880,6 +880,15 @@ function crash(){
     setTimeout(endGame, 1300);
   }
 }
+// Leaderboard on the wipeout screen: shows the board of whichever dog is selected.
+// You can only post to the board of the dog you actually played.
+let lastRun = null;
+function showRunBoard(){
+  if (!lastRun || typeof CrewBoard === 'undefined') return;
+  const mine = skinId === lastRun.skin;
+  CrewBoard.show('lb', 'adventure-m-' + skinId, mine ? lastRun.dist : 0, ' m',
+    {title: SKINS[skinId].name + "'s leaderboard", note: mine ? '' : `Play as ${SKINS[skinId].name} to post here`});
+}
 function endGame(){
   state = 'over';
   Music.fadeOut();
@@ -897,7 +906,7 @@ function endGame(){
   // bones are banked the moment they're collected (see bone pickup), so nothing is lost if the game is closed mid-run
   showWallet();
   $('banked').textContent = (treats ? `+${treats} 🦴 saved · ` : '') + `Wallet: ${wallet} 🦴`;
-  CrewBoard.show('lb', 'adventure-m-' + skinId, distM, ' m', {title: SKINS[skinId].name + "'s leaderboard"});   // one board per dog: you can only see and post to the dog you just played
+  lastRun = {skin: skinId, dist: distM}; showRunBoard();
   $('over').classList.add('show'); $('hud').style.display = 'none';
   finishRunMissions();
   showBest();
