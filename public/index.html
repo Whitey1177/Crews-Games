@@ -880,7 +880,7 @@ function endGame(){
   // bones are banked the moment they're collected (see bone pickup), so nothing is lost if the game is closed mid-run
   showWallet();
   $('banked').textContent = (treats ? `+${treats} 🦴 saved · ` : '') + `Wallet: ${wallet} 🦴`;
-  CrewBoard.show('lb', 'adventure-m-' + skinId, distM, ' m', {title: SKINS[skinId].name + "'s leaderboard", titleFor: b => b.label + "'s leaderboard", boards: Object.keys(SKINS).map(id => ({id: 'adventure-m-' + id, label: SKINS[id].name}))});
+  CrewBoard.show('lb', 'adventure-m-' + skinId, distM, ' m', {title: SKINS[skinId].name + "'s leaderboard"});   // one board per dog: you can only see and post to the dog you just played
   $('over').classList.add('show'); $('hud').style.display = 'none';
   finishRunMissions();
   showBest();
