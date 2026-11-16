@@ -6,11 +6,11 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "backgroundColor": "#fdf1dc",
+    "backgroundColor": "#9ccfff",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#fdf1dc"
+      "backgroundColor": "#9ccfff"
     },
     "ios": {
       "bundleIdentifier": "com.whitey1177.pupslope",
@@ -26,7 +26,7 @@
       "package": "com.whitey1177.pupslope",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#ffb347"
+        "backgroundColor": "#9ccfff"
       }
     },
     "plugins": [
