@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Crew's Games",
+    "slug": "crews-games",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#fdf1dc",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#fdf1dc"
+    },
+    "ios": {
+      "bundleIdentifier": "com.whitey1177.crewsgames",
+      "supportsTablet": false,
+      "requireFullScreen": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIStatusBarHidden": true
+      }
+    },
+    "android": {
+      "package": "com.whitey1177.crewsgames",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffb347"
+      }
+    }
+  }
+}

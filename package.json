@@ -1,0 +1,8 @@
+{
+  "name": "crews-games",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@netlify/blobs": "*"
+  }
+}
