@@ -5,6 +5,8 @@ import { WebView } from 'react-native-webview';
 import { PAGES } from './games';
 import { SITE_URL } from './config';
 import { initAds, showAd, setPersonalized } from './ads';
+import * as GC from './modules/game-center';
+import { leaderboardId, challengeId, DOGS } from './gamecenter-ids';
 
 // Each game is packed inside the app. It runs as if it lived at SITE_URL/<page>/,
 // so saved progress works and the leaderboard posts to your Netlify site.
@@ -24,9 +26,19 @@ export default function App() {
   const [hash, setHash] = useState('');
   const web = useRef(null);
   useEffect(() => { initAds(); }, []);
+  const tellGame = (js) => web.current?.injectJavaScript(js + '; true;');
+  const signIn = useCallback(async () => {
+    const ok = await GC.authenticate();
+    tellGame(`window.__gcReady && window.__gcReady(${ok ? 'true' : 'false'}, ${GC.canChallenge() ? 'true' : 'false'})`);
+    return ok;
+  }, []);
   const onMessage = useCallback(async (e) => {
     let m; try { m = JSON.parse(e.nativeEvent.data); } catch { return; }
     if (m.type === 'consent') setPersonalized(!!m.personalized);
+    if (m.type === 'gc-hello') signIn();
+    if (m.type === 'gc-score' && DOGS.includes(m.dog)) { if (GC.available && !(await GC.authenticate())) return; GC.submitScore(m.score, leaderboardId(m.dog)); }
+    if (m.type === 'gc-board' && DOGS.includes(m.dog)) { if (await signIn()) GC.showLeaderboard(leaderboardId(m.dog)); }
+    if (m.type === 'gc-challenge' && DOGS.includes(m.dog)) { if (await signIn()) GC.challenge(challengeId(m.dog)); }
     if (m.type === 'ad') {
       setPersonalized(!m.npa);
       const ok = await showAd(m.kind === 'interstitial' ? 'interstitial' : 'rewarded');

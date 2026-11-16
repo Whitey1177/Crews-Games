@@ -117,6 +117,9 @@ html,body{height:100%;background:#1d2a44;font-family:ui-rounded,"SF Pro Rounded"
 .adlogo{font-size:64px;margin:18px 0 6px}.adtxt{font-size:22px;font-weight:900}.adsub{opacity:.6;font-size:13px;margin-top:8px;font-weight:700}
 #adClose{margin-top:22px;font:inherit;font-weight:900;font-size:16px;background:#fff;color:#111;border:none;border-radius:12px;padding:10px 18px;cursor:pointer}
 .lbw li button.rep{background:none;border:none;box-shadow:none;color:#b9a48c;font-size:13px;padding:0 0 0 8px;margin:0;width:auto;cursor:pointer;vertical-align:1px}
+.gcbtns{display:flex;flex-direction:column;gap:8px;margin:6px 0 4px}
+.lbw .gcb{font:inherit;font-weight:900;font-size:16px;border:none;border-radius:14px;padding:12px;background:#3a86ff;color:#fff;cursor:pointer;width:100%}
+.lbw .gcb.gcc{background:#ff8a3d}
 </style>
 </head>
 <body>
@@ -919,7 +922,25 @@ function crash(){
 // Leaderboard on the wipeout screen: shows the board of whichever dog is selected.
 // You can only post to the board of the dog you actually played.
 let lastRun = null;
+// In the iPhone app the leaderboards are Apple Game Center (one per dog, with Friends tabs and friend challenges).
+const inApp = !!window.ReactNativeWebView;
+const toApp = m => { try { window.ReactNativeWebView.postMessage(JSON.stringify(m)); } catch(e){} };
+let gc = {ok: null, challenge: false};
+window.__gcReady = (ok, ch) => { gc = {ok, challenge: ch}; if (state === 'over') showRunBoard(); };
+if (inApp) setTimeout(() => toApp({type: 'gc-hello'}), 800);
+function showGameCenterBoard(){
+  const el = $('lb'); if (!el) return;
+  const S = SKINS[skinId], played = lastRun && lastRun.skin === skinId;
+  el.className = 'lbw';
+  el.innerHTML = `<h3>🏆 ${S.name}'s leaderboard</h3>
+    <div class="gcbtns"><button class="gcb" id="gcBoard">🏆 See leaderboard</button>${gc.challenge !== false ? `<button class="gcb gcc" id="gcChal">⚔️ Challenge a friend</button>` : ''}</div>
+    <div class="msg">${gc.ok === false ? 'Sign in to Game Center to post scores and see leaderboards.' : played ? `Your ${lastRun.dist.toLocaleString()} m run was posted to ${S.name}'s Game Center board.` : `Play as ${S.name} to post on this board.`}</div>`;
+  ['pointerdown','touchstart'].forEach(ev => el.addEventListener(ev, e => e.stopPropagation()));
+  $('gcBoard').onclick = e => { e.stopPropagation(); toApp({type: 'gc-board', dog: skinId}); };
+  if ($('gcChal')) $('gcChal').onclick = e => { e.stopPropagation(); toApp({type: 'gc-challenge', dog: skinId}); };
+}
 function showRunBoard(){
+  if (inApp) return showGameCenterBoard();
   if (!lastRun || typeof CrewBoard === 'undefined') return;
   const mine = skinId === lastRun.skin;
   CrewBoard.show('lb', 'adventure-m-' + skinId, mine ? lastRun.dist : 0, ' m',
@@ -1000,7 +1021,9 @@ function endGame(){
   // bones are banked the moment they're collected (see bone pickup), so nothing is lost if the game is closed mid-run
   showWallet();
   $('banked').textContent = (treats ? `+${treats} 🦴 saved · ` : '') + `Wallet: ${wallet} 🦴`;
-  lastRun = {skin: skinId, dist: distM, t: Math.round(rideT*10)/10}; showRunBoard();
+  lastRun = {skin: skinId, dist: distM, t: Math.round(rideT*10)/10};
+  if (inApp && distM > 0) toApp({type: 'gc-score', dog: skinId, score: distM});
+  showRunBoard();
   $('over').classList.add('show'); $('hud').style.display = 'none';
   finishRunMissions();
   showBest();

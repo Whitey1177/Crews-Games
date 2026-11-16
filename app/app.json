@@ -20,6 +20,9 @@
         "ITSAppUsesNonExemptEncryption": false,
         "UIStatusBarHidden": true,
         "NSUserTrackingUsageDescription": "This lets Pup Slope show you ads that are more relevant to you. You can still play either way."
+      },
+      "entitlements": {
+        "com.apple.developer.game-center": true
       }
     },
     "android": {
