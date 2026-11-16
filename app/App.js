@@ -7,13 +7,14 @@ import { SITE_URL } from './config';
 
 // Each game is packed inside the app. It runs as if it lived at SITE_URL/<page>/,
 // so saved progress works and the leaderboard posts to your Netlify site.
-const BASE = { home: '/', merge: '/merge/', jump: '/jump/', adventure: '/adventure/', privacy: '/privacy/' };
+const BASE = { home: '/', privacy: '/privacy/' };
 
 function pageFor(url) {
   if (!url || !url.startsWith(SITE_URL)) return null;
   const p = url.slice(SITE_URL.length).split('#')[0].split('?')[0];
   if (p === '' || p === '/' || p === '/index.html') return 'home';
-  for (const k of ['merge', 'jump', 'adventure', 'privacy']) if (p === `/${k}` || p.startsWith(`/${k}/`)) return k;
+  if (p === '/privacy' || p.startsWith('/privacy/')) return 'privacy';
+  if (p === '/adventure' || p.startsWith('/adventure/')) return 'home';
   return undefined; // another page on the site (e.g. feedback): load it from the web
 }
 

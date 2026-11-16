@@ -1,9 +1,9 @@
 # Crew's Games
 
-Three dog-themed games (Crew, Crew Jump, Crew's Adventure) with a global leaderboard, plus the iPhone app.
+Crew's Adventure (dog snowboarding game) with a global leaderboard, plus the iPhone app. Other games are parked in `archive/`.
 
 ## What's inside
-- `public/` – the website (home menu, the three games, privacy policy)
+- `public/` – the website: Crew's Adventure at `/`, privacy policy at `/privacy/`
 - `functions/api/scores.js` – the leaderboard (Cloudflare Pages Function, stores scores in Workers KV)
 - `app/` – the iPhone app (Expo). See `app/README.md`.
 
