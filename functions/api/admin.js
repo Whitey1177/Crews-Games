@@ -3,6 +3,7 @@
 //   GET  /api/admin                                   → every dog's board (all entries) + banned names
 //   POST /api/admin {action:"delete", game, name, ban} → remove a name (and optionally ban it)
 //   POST /api/admin {action:"unban", name}            → allow a banned name again
+//   POST /api/admin {action:"dismiss", game, name}    → clear a player report without removing the name
 // Send the key in the "x-admin-key" header.
 import { DOGS } from "./scores.js";
 
@@ -29,7 +30,7 @@ export async function onRequest({ request, env }) {
   if (request.method === "GET") {
     const boards = {};
     await Promise.all(DOGS.map(async d => { boards[d] = await readList(kv, "board:adventure-m-" + d); }));
-    return json({ boards, banned: await readList(kv, "banned") });
+    return json({ boards, banned: await readList(kv, "banned"), reports: await readList(kv, "reports") });
   }
 
   if (request.method === "POST") {
@@ -45,7 +46,14 @@ export async function onRequest({ request, env }) {
       const left = list.filter(e => e.name.toLowerCase() !== name);
       if (left.length !== list.length) await kv.put("board:" + game, JSON.stringify(left));
       if (body.ban && !banned.includes(name)) { banned.push(name); await kv.put("banned", JSON.stringify(banned)); }
-      return json({ ok: true, removed: list.length - left.length, banned });
+      const reports = (await readList(kv, "reports")).filter(r => !(r.game === game && r.name.toLowerCase() === name));
+      await kv.put("reports", JSON.stringify(reports));
+      return json({ ok: true, removed: list.length - left.length, banned, reports });
+    }
+    if (body.action === "dismiss") {
+      const reports = (await readList(kv, "reports")).filter(r => !(r.game === String(body.game) && r.name.toLowerCase() === name));
+      await kv.put("reports", JSON.stringify(reports));
+      return json({ ok: true, reports });
     }
     if (body.action === "unban") {
       const left = banned.filter(n => n !== name);

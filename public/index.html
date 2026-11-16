@@ -116,6 +116,7 @@ html,body{height:100%;background:#1d2a44;font-family:ui-rounded,"SF Pro Rounded"
 #adov.show{display:flex}.adbox{padding:24px}.adtag{display:inline-block;background:#ffd23f;color:#111;font-weight:900;font-size:12px;border-radius:6px;padding:3px 8px;letter-spacing:.08em}
 .adlogo{font-size:64px;margin:18px 0 6px}.adtxt{font-size:22px;font-weight:900}.adsub{opacity:.6;font-size:13px;margin-top:8px;font-weight:700}
 #adClose{margin-top:22px;font:inherit;font-weight:900;font-size:16px;background:#fff;color:#111;border:none;border-radius:12px;padding:10px 18px;cursor:pointer}
+.lbw li button.rep{background:none;border:none;box-shadow:none;color:#b9a48c;font-size:13px;padding:0 0 0 8px;margin:0;width:auto;cursor:pointer;vertical-align:1px}
 </style>
 </head>
 <body>
@@ -187,10 +188,18 @@ const CrewBoard = (() => {
       return j;
     } finally { clearTimeout(t); }
   }
-  function list(el, top, me, unit=''){
+  function list(el, top, me, unit='', game=''){
     const ol = el.querySelector('ol');
     if (!top.length){ ol.innerHTML = '<li><span class="n">No scores yet. Be the first!</span></li>'; return; }
-    ol.innerHTML = top.map((e, i) => `<li class="${me && e.name.toLowerCase() === me.toLowerCase() ? 'me' : ''}"><span class="n"><span class="r">${i+1}.</span> ${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''}${esc(e.name)}</span><span>${Number(e.score).toLocaleString()}${unit}</span></li>`).join('');
+    ol.innerHTML = top.map((e, i) => { const mine = me && e.name.toLowerCase() === me.toLowerCase();
+      return `<li class="${mine ? 'me' : ''}"><span class="n"><span class="r">${i+1}.</span> ${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''}${esc(e.name)}</span><span class="s">${Number(e.score).toLocaleString()}${unit}${mine || !game ? '' : `<button class="rep" data-n="${esc(e.name)}" title="Report this name" aria-label="Report name">⚑</button>`}</span></li>`; }).join('');
+    ol.querySelectorAll('.rep').forEach(b => b.onclick = async ev => {
+      ev.stopPropagation();
+      if (b.dataset.done) return;
+      if (!confirm(`Report "${b.dataset.n}" as an offensive name?`)) return;
+      b.dataset.done = 1; b.textContent = '✓';
+      try { await fetch('/api/report', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({game, name: b.dataset.n})}); } catch(e){}
+    });
   }
   // game: board id to post to. opts.title: heading. opts.boards: [{id, label}] chips to browse other boards.
   function show(containerId, game, score, unit='', opts={}){
@@ -209,7 +218,7 @@ const CrewBoard = (() => {
     const load = id => { viewing = id; el.querySelector('ol').innerHTML = '<li><span class="n">Loading…</span></li>';
       el.querySelectorAll('.lbchip').forEach(c => c.classList.toggle('on', c.dataset.b === id));
       const b = boards.find(x => x.id === id); if (opts.title && b) el.querySelector('h3').textContent = '🏆 ' + (opts.titleFor ? opts.titleFor(b) : opts.title);
-      call('GET', id).then(j => { if (viewing === id) list(el, j.top || [], getName(), unit); }).catch(() => {
+      call('GET', id).then(j => { if (viewing === id) list(el, j.top || [], getName(), unit, id); }).catch(() => {
         el.querySelector('ol').style.display = 'none'; row.style.display = 'none'; el.querySelectorAll('.lbchips').forEach(c => c.style.display = 'none');
         msg.textContent = 'The leaderboard works on the online version of the game.';
       }); };
@@ -222,11 +231,11 @@ const CrewBoard = (() => {
       if (!name){ msg.innerHTML = '<span class="err">Type a name first</span>'; input.focus(); return; }
       btn.disabled = true; msg.textContent = 'Posting…';
       try {
-        const j = await call('POST', game, {game, name, score});
+        const j = await call('POST', game, {game, name, score, ...(opts.extra || {})});
         posted = true; setName(j.name || name); row.style.display = 'none'; input.blur();
         msg.textContent = j.rank ? (j.rank <= 10 ? `You're #${j.rank}! 🎉` : `You're #${j.rank} — keep going!`) : 'Posted!';
         if (j.improved === false) msg.textContent = `Your best (${Number(j.best).toLocaleString()}${unit}) is still on the board`;
-        if (viewing !== game) load(game); else list(el, j.top || [], j.name || name, unit);
+        if (viewing !== game) load(game); else list(el, j.top || [], j.name || name, unit, game);
       } catch(e){ msg.innerHTML = `<span class="err">${esc(e.message || 'Could not post')}</span>`; btn.disabled = false; }
     };
     btn.onclick = post;
@@ -731,6 +740,7 @@ const Music = (() => {
 })();
 function syncMusicBtns(){ document.querySelectorAll('.musicBtn').forEach(b => b.textContent = Music.on ? '🎵' : '🔇'); const m = $('musicStart'); if (m) m.textContent = Music.on ? '🎵 Music: On' : '🔇 Music: Off'; }
 let C = null, nextChaseM = 2500;   // the dog catcher
+let rideT = 0;   // seconds actually ridden this run (sent with leaderboard posts so impossible scores are rejected)
 
 function reset(){
   initTerrain();
@@ -739,7 +749,7 @@ function reset(){
   nextObjX = 900; nextDecorX = -200;
   camX = P.x - 150; camY = P.y - 200;
   C = null; nextChaseM = 2500;
-  score = 0; bonus = 0; treats = 0; flipsTotal = 0;
+  score = 0; bonus = 0; treats = 0; flipsTotal = 0; rideT = 0;
   $('treats').textContent = 0;
 }
 if (!snow){ snow = Array.from({length: 70}, () => ({x: Math.random(), y: Math.random(), s: .5 + Math.random()*1.5, d: Math.random()*6})); }
@@ -913,7 +923,7 @@ function showRunBoard(){
   if (!lastRun || typeof CrewBoard === 'undefined') return;
   const mine = skinId === lastRun.skin;
   CrewBoard.show('lb', 'adventure-m-' + skinId, mine ? lastRun.dist : 0, ' m',
-    {title: SKINS[skinId].name + "'s leaderboard", note: mine ? '' : `Play as ${SKINS[skinId].name} to post here`});
+    {title: SKINS[skinId].name + "'s leaderboard", note: mine ? '' : `Play as ${SKINS[skinId].name} to post here`, extra: {t: lastRun.t}});
 }
 // ---------- ads ----------
 // In the iPhone app the game asks the app to show a real AdMob ad; in the Claude preview it shows a test ad;
@@ -990,7 +1000,7 @@ function endGame(){
   // bones are banked the moment they're collected (see bone pickup), so nothing is lost if the game is closed mid-run
   showWallet();
   $('banked').textContent = (treats ? `+${treats} 🦴 saved · ` : '') + `Wallet: ${wallet} 🦴`;
-  lastRun = {skin: skinId, dist: distM}; showRunBoard();
+  lastRun = {skin: skinId, dist: distM, t: Math.round(rideT*10)/10}; showRunBoard();
   $('over').classList.add('show'); $('hud').style.display = 'none';
   finishRunMissions();
   showBest();
@@ -1135,6 +1145,7 @@ function updateCatcher(dt){
 function step(dt){
   const demo = state === 'start';
   if (P.shield > 0) P.shield -= dt;
+  if (state === 'play') rideT += dt;
   P.crouch = Math.max(0, P.crouch - dt*3);
   if (P.caughtBy){ updateCatcher(dt); return; }
   if (P.crash){

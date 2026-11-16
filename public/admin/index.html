@@ -49,6 +49,10 @@ button{font:inherit;font-weight:900;border:none;border-radius:12px;padding:10px 
   </div>
 
   <div id="panel" style="display:none">
+    <div class="card" id="repCard">
+      <b>⚑ Reported names</b>
+      <div id="reports"></div>
+    </div>
     <div class="card">
       <div class="tabs" id="tabs"></div>
       <label class="chk"><input type="checkbox" id="banToo" checked> Also ban the name, so it can't be posted again</label>
@@ -91,14 +95,27 @@ function render(){
   const list = data.boards[dog] || [];
   $('list').innerHTML = list.length ? list.map((e, i) => `<div class="row"><span class="rk">${i + 1}.</span><span class="nm">${esc(e.name)}<div class="dt">${e.at ? new Date(e.at).toLocaleString() : ''}</div></span><span class="sc">${Number(e.score).toLocaleString()} m</span><button class="del" data-n="${esc(e.name)}" aria-label="Remove">🗑️</button></div>`).join('')
                                   : `<div class="empty">No scores on ${DOGS[dog]}'s board yet.</div>`;
-  document.querySelectorAll('.del').forEach(b => b.onclick = async () => {
+  $('list').querySelectorAll('.del').forEach(b => b.onclick = async () => {
     const name = b.dataset.n, ban = $('banToo').checked;
     if (!confirm(`Remove "${name}" from ${DOGS[dog]}'s leaderboard${ban ? ' and ban the name' : ''}?`)) return;
-    try { const r = await api('POST', {action: 'delete', game: 'adventure-m-' + dog, name, ban}); data.boards[dog] = list.filter(e => e.name !== name); data.banned = r.banned; $('msg').innerHTML = `<span class="ok">Removed ${esc(name)}${ban ? ' and banned the name' : ''}.</span>`; render(); }
+    try { const r = await api('POST', {action: 'delete', game: 'adventure-m-' + dog, name, ban}); data.boards[dog] = list.filter(e => e.name !== name); data.banned = r.banned; if (r.reports) data.reports = r.reports; $('msg').innerHTML = `<span class="ok">Removed ${esc(name)}${ban ? ' and banned the name' : ''}.</span>`; render(); }
     catch(e){ $('msg').innerHTML = `<span class="err">${esc(e.message)}</span>`; }
   });
+  const reps = data.reports || [];
+  $('repCard').style.borderLeft = reps.length ? '5px solid #e8394a' : '';
+  $('reports').innerHTML = reps.length ? reps.map((r, i) => `<div class="row"><span class="nm">${esc(r.name)}<div class="dt">${DOGS[r.game.replace('adventure-m-', '')] || r.game} · reported ${r.n}× · ${new Date(r.at).toLocaleString()}</div></span><button class="del" data-i="${i}" aria-label="Remove and ban">🗑️</button><button class="ban" data-x="${i}">Dismiss</button></div>`).join('')
+    : '<div class="empty">No reports. 🎉</div>';
+  $('reports').querySelectorAll('.del').forEach(b => b.onclick = async () => {
+    const r = reps[+b.dataset.i]; if (!confirm(`Remove "${r.name}" and ban the name?`)) return;
+    try { const res = await api('POST', {action: 'delete', game: r.game, name: r.name, ban: true}); const d = r.game.replace('adventure-m-', '');
+      data.boards[d] = (data.boards[d] || []).filter(e => e.name.toLowerCase() !== r.name.toLowerCase()); data.banned = res.banned; data.reports = res.reports; render(); } catch(e){ alert(e.message); }
+  });
+  $('reports').querySelectorAll('[data-x]').forEach(b => b.onclick = async () => {
+    const r = reps[+b.dataset.x];
+    try { const res = await api('POST', {action: 'dismiss', game: r.game, name: r.name}); data.reports = res.reports; render(); } catch(e){ alert(e.message); }
+  });
   $('banned').innerHTML = data.banned.length ? data.banned.map(n => `<div class="row"><span class="nm">${esc(n)}</span><button class="ban" data-n="${esc(n)}">Unban</button></div>`).join('') : '<div class="empty">Nobody is banned.</div>';
-  document.querySelectorAll('.ban').forEach(b => b.onclick = async () => {
+  $('banned').querySelectorAll('.ban').forEach(b => b.onclick = async () => {
     try { const r = await api('POST', {action: 'unban', name: b.dataset.n}); data.banned = r.banned; render(); } catch(e){ alert(e.message); }
   });
 }
