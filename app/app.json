@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Crew's Adventure",
-    "slug": "crews-games",
+    "name": "Pup Slope",
+    "slug": "pup-slope",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,7 +13,7 @@
       "backgroundColor": "#fdf1dc"
     },
     "ios": {
-      "bundleIdentifier": "com.whitey1177.crewsgames",
+      "bundleIdentifier": "com.whitey1177.pupslope",
       "supportsTablet": false,
       "requireFullScreen": true,
       "infoPlist": {
@@ -22,7 +22,7 @@
       }
     },
     "android": {
-      "package": "com.whitey1177.crewsgames",
+      "package": "com.whitey1177.pupslope",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffb347"

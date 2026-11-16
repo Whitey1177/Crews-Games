@@ -1,4 +1,4 @@
-# Crew's Games — iPhone app (Expo)
+# Pup Slope — iPhone app (Expo)
 
 This folder is the App Store version. It packs the games from `../public` inside the app.
 
