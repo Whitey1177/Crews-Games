@@ -90,6 +90,9 @@ html,body{height:100%;background:#1d2a44;font-family:ui-rounded,"SF Pro Rounded"
 
 #over .card{max-height:94vh;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 .homebtn{display:inline-block;margin-top:12px;font-weight:900;font-size:15px;color:#a0703a;text-decoration:none}
+.lbchips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;margin:0 -2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}.lbchips::-webkit-scrollbar{display:none}
+.lbw .lbchip{flex:none;font:inherit;font-size:12.5px;font-weight:800;border:none;border-radius:999px;padding:6px 11px;background:#eee4da;color:#6b5040;cursor:pointer;width:auto;min-width:0;height:auto;margin:0;box-shadow:none;line-height:1.2}
+.lbw .lbchip.on{background:#ff8a3d;color:#fff}
 </style>
 </head>
 <body>
@@ -158,21 +161,29 @@ const CrewBoard = (() => {
     if (!top.length){ ol.innerHTML = '<li><span class="n">No scores yet. Be the first!</span></li>'; return; }
     ol.innerHTML = top.map((e, i) => `<li class="${me && e.name.toLowerCase() === me.toLowerCase() ? 'me' : ''}"><span class="n"><span class="r">${i+1}.</span> ${i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''}${esc(e.name)}</span><span>${Number(e.score).toLocaleString()}${unit}</span></li>`).join('');
   }
-  // game: 'merge' | 'jump' | 'adventure'
-  function show(containerId, game, score, unit=''){
+  // game: board id to post to. opts.title: heading. opts.boards: [{id, label}] chips to browse other boards.
+  function show(containerId, game, score, unit='', opts={}){
     const el = document.getElementById(containerId); if (!el) return;
     el.className = 'lbw';
-    el.innerHTML = `<h3>🏆 Leaderboard</h3>
+    const boards = opts.boards || [];
+    el.innerHTML = `<h3>🏆 ${esc(opts.title || 'Leaderboard')}</h3>
+      ${boards.length ? `<div class="lbchips">${boards.map(b => `<button class="lbchip${b.id === game ? ' on' : ''}" data-b="${b.id}">${esc(b.label)}</button>`).join('')}</div>` : ''}
       <div class="row"${score > 0 ? '' : ' style="display:none"'}><input maxlength="14" placeholder="Your name" autocomplete="nickname" enterkeyhint="send"><button>Post</button></div>
       <div class="lbnote" style="font-size:11.5px;opacity:.7;margin:2px 0 4px">Your nickname &amp; score are public. Don't use your real name.</div>
       <div class="msg"></div><ol><li><span class="n">Loading…</span></li></ol>`;
-    const input = el.querySelector('input'), btn = el.querySelector('button'), msg = el.querySelector('.msg'), row = el.querySelector('.row');
+    const input = el.querySelector('input'), btn = el.querySelector('.row button'), msg = el.querySelector('.msg'), row = el.querySelector('.row');
     input.value = getName();
     ['pointerdown','touchstart','keydown','keyup'].forEach(ev => el.addEventListener(ev, e => e.stopPropagation()));
-    call('GET', game).then(j => list(el, j.top || [], getName(), unit)).catch(() => {
-      el.querySelector('ol').style.display = 'none'; row.style.display = 'none';
-      msg.textContent = 'The leaderboard works on the online version of the game.';
-    });
+    let viewing = game;
+    const load = id => { viewing = id; el.querySelector('ol').innerHTML = '<li><span class="n">Loading…</span></li>';
+      el.querySelectorAll('.lbchip').forEach(c => c.classList.toggle('on', c.dataset.b === id));
+      const b = boards.find(x => x.id === id); if (opts.title && b) el.querySelector('h3').textContent = '🏆 ' + (opts.titleFor ? opts.titleFor(b) : opts.title);
+      call('GET', id).then(j => { if (viewing === id) list(el, j.top || [], getName(), unit); }).catch(() => {
+        el.querySelector('ol').style.display = 'none'; row.style.display = 'none'; el.querySelectorAll('.lbchips').forEach(c => c.style.display = 'none');
+        msg.textContent = 'The leaderboard works on the online version of the game.';
+      }); };
+    el.querySelectorAll('.lbchip').forEach(c => c.onclick = () => load(c.dataset.b));
+    load(game);
     let posted = false;
     const post = async () => {
       if (posted) return;
@@ -184,7 +195,7 @@ const CrewBoard = (() => {
         posted = true; setName(j.name || name); row.style.display = 'none'; input.blur();
         msg.textContent = j.rank ? (j.rank <= 10 ? `You're #${j.rank}! 🎉` : `You're #${j.rank} — keep going!`) : 'Posted!';
         if (j.improved === false) msg.textContent = `Your best (${Number(j.best).toLocaleString()}${unit}) is still on the board`;
-        list(el, j.top || [], j.name || name, unit);
+        if (viewing !== game) load(game); else list(el, j.top || [], j.name || name, unit);
       } catch(e){ msg.innerHTML = `<span class="err">${esc(e.message || 'Could not post')}</span>`; btn.disabled = false; }
     };
     btn.onclick = post;
@@ -869,7 +880,7 @@ function endGame(){
   // bones are banked the moment they're collected (see bone pickup), so nothing is lost if the game is closed mid-run
   showWallet();
   $('banked').textContent = (treats ? `+${treats} 🦴 saved · ` : '') + `Wallet: ${wallet} 🦴`;
-  CrewBoard.show('lb', 'adventure-m', distM, ' m');
+  CrewBoard.show('lb', 'adventure-m-' + skinId, distM, ' m', {title: SKINS[skinId].name + "'s leaderboard", titleFor: b => b.label + "'s leaderboard", boards: Object.keys(SKINS).map(id => ({id: 'adventure-m-' + id, label: SKINS[id].name}))});
   $('over').classList.add('show'); $('hud').style.display = 'none';
   finishRunMissions();
   showBest();

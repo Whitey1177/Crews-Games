@@ -5,6 +5,7 @@
 // (Cloudflare dashboard → your Pages project → Settings → Bindings → KV namespace).
 
 const GAMES = { merge: 2_000_000, jump: 2_000_000, adventure: 20_000_000, "adventure-m": 200_000 }; // max believable value per board
+for (const dog of ["crew", "dixie", "winnie", "penny", "rufus", "scout", "gracie", "duck"]) GAMES["adventure-m-" + dog] = 200_000; // Crew's Adventure: one distance board per character
 const KEEP = 100;
 const BLOCK = ["fuck", "shit", "bitch", "cunt", "nigg", "fag", "slut", "whore", "cock", "pussy", "rape", "nazi"];
 
