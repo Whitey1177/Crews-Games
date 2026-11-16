@@ -399,7 +399,7 @@ const SONGS = {
            motif:[[null,null,7,null,null,null,null,9,null,null,7,null,null,null,null,null]], seq:false},
   gracie: {title:'Gracie Grit', genre:'Trap', bpm:142, tonic:47, mode:'harmonic', prog:[0,5,3,4], drums:'trap', bass:'808', chords:'choir', lead:'flute', sig:'tag', intro:4, build:2, seed:66,
            motif:[[7,null,null,6,null,7,null,4,null,null,3,null,4,null,null,null],[7,null,8,null,7,null,6,null,4,null,null,null,6,null,7,null]], seq:false},
-  duck:   {title:'Feather Funk', genre:'Nu-disco funk', bpm:116, tonic:58, mode:'mixo', prog:[0,6,3,0], ext:true, drums:'disco', bass:'slap', chords:'strings', lead:'wah', sig:'honk', intro:4, build:4, swing:.1, introDrums:true, seed:77,
+  casey:  {title:"Casey's Strut", genre:'Nu-disco funk', bpm:116, tonic:58, mode:'mixo', prog:[0,6,3,0], ext:true, drums:'disco', bass:'slap', chords:'strings', lead:'wah', sig:'snort', intro:4, build:4, swing:.1, introDrums:true, seed:77,
            motif:[[0,null,2,0,null,-2,null,0,4,null,null,2,0,null,-2,null],[4,null,5,4,null,2,null,0,null,null,-2,null,0,null,null,null]], seq:true},
 };
 const Music = (() => {
@@ -524,6 +524,9 @@ const Music = (() => {
       o.connect(f).connect(g).connect(pump); o.connect(f); o.start(t + k); o.stop(t + k + .2);
       nz(t + k, 'bandpass', 1500, .12, .05, pump, 2);
     }
+  }
+  function snort(t){ // bulldog snort-snort
+    for (const k of [0, SD*1.2]){ nz(t + k, 'bandpass', 320, .5, .09, pump, 3); nz(t + k + .02, 'lowpass', 180, .35, .07, pump); }
   }
   function honk(t){ // peacock call "may-AWW"
     const o = ac.createOscillator(), o2 = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain();
@@ -681,6 +684,7 @@ const Music = (() => {
     // signature sounds
     if (R.sig === 'bark' && drop && rel % 2 === 1 && s16 === 13) bark(t);
     if (R.sig === 'honk' && (drop || sec === 'intro') && rel % 4 === 3 && s16 === 2) honk(t);
+    if (R.sig === 'snort' && (drop || sec === 'intro') && rel % 4 === 3 && s16 === 2) snort(t);
     if (R.sig === 'hop' && drop && s16 === 15 && rel % 2 === 0) hopBloop(t);
     if (R.sig === 'zip' && drop && rel % 4 === 3 && s16 === 14) zip(t);
     if (R.sig === 'grr' && drop && rel % 4 === 3 && s16 === 8) grr(t, SD*6);
@@ -1117,7 +1121,7 @@ function step(dt){
         const tk = skinId, cy = P.y - 26;
         if (tk === 'winnie') parts.push({x: P.x + (Math.random()-.5)*40, y: cy + (Math.random()-.5)*40, vx: -60, vy: -20, life: .5, r: 1.5 + Math.random()*2, c: Math.random() < .5 ? '#ff9ecb' : '#ffffff'});
         else if (tk === 'rufus') parts.push({x: P.x + (Math.random()-.5)*30, y: cy, vx: (Math.random()-.5)*260, vy: -80 - Math.random()*120, life: .45, r: 1.5 + Math.random()*1.5, c: '#e8f4ff'});
-        else if (tk === 'duck') parts.push({x: P.x - 20, y: cy, vx: -80 + (Math.random()-.5)*120, vy: (Math.random()-.5)*120, life: .6, r: 2 + Math.random()*1.5, c: Math.random() < .5 ? '#2aa36b' : '#1aa3a3'});
+        else if (tk === 'casey') parts.push({x: P.x - 20, y: cy, vx: -80 + (Math.random()-.5)*120, vy: (Math.random()-.5)*120, life: .6, r: 2 + Math.random()*1.5, c: Math.random() < .5 ? '#ffffff' : '#1aa3a3'});
         else if (tk === 'gracie') parts.push({x: P.x + (Math.random()-.5)*36, y: cy + (Math.random()-.5)*36, vx: -120, vy: 0, life: .35, r: 2.2, c: '#c9d0de'});
         else if (tk === 'crew') parts.push({x: P.x + Math.cos(P.flipAcc*2)*26, y: cy + Math.sin(P.flipAcc*2)*26, vx: -90, vy: 0, life: .45, r: 2.5, c: Math.random() < .5 ? '#ff9f1c' : '#ffd23f'});
         else if (tk === 'dixie') parts.push({x: P.x - 25, y: cy + (Math.random()-.5)*20, vx: -220, vy: 0, life: .25, r: 1.5, c: 'rgba(255,255,255,.9)'});
@@ -1232,10 +1236,11 @@ const SKINS = {
   gracie: {name:'Gracie', trick:'Bulldog Roll', power:'Tough landing', icon:'🛡️', desc:'Sketchy landings slow her down 75% less',
            fur:'#5a6170', dark:'#4a505d', light:'#6a7180', lighter:'#777e8c', snout:'#f4eeea', curly:false, tail:'thin', scale:1.05,
            ear:'#4a505d', chest:'#f6f2ee', paws:'#f6f2ee', muzzle:'#f2d6d6', blaze:'#f6f2ee', stumbleMul:.25},
-  duck:   {name:'Colorful Duck', short:'Duck', power:'Glide', icon:'🪶', desc:'Falls 40% slower, but rides 15% slower',
-           bird:true, scale:1, gravMul:.6, speedMul:.85, trick:'Feather Fan'},
+  casey:  {name:'Casey', trick:'Belly Flop', power:'Glide', icon:'🪂', desc:'Falls 40% slower, but rides 15% slower',
+           fur:'#c98f55', dark:'#a9743f', light:'#d9a66c', lighter:'#e6bb86', snout:'#f3e9dd', curly:false, tail:'stub', scale:1.1,
+           ear:'#5e3f2b', chest:'#f3e9dd', muzzle:'#efe3d6', blaze:'#f6efe6', mask:'#6b4a35', bully:true, gravMul:.6, speedMul:.85},
 };
-let skinId = load('crewadv-skin', 'crew'); if (!SKINS[skinId]) skinId = 'crew';
+let skinId = load('crewadv-skin', 'crew'); if (skinId === 'duck') skinId = 'casey'; if (!SKINS[skinId]) skinId = 'crew';
 try { const old = +localStorage.getItem('crewadv-bestm') || 0; if (old && !bestOf(skinId)) setBest(skinId, old); localStorage.removeItem('crewadv-bestm'); } catch(e){}
 const SK = () => SKINS[skinId];
 function curls(points, r, col){ ctx.fillStyle = col; for (const [x,y,k] of points){ ctx.beginPath(); ctx.arc(x, y, r*(k||1), 0, Math.PI*2); ctx.fill(); } }
@@ -1305,6 +1310,7 @@ function drawCrew(t, o){
   ctx.save(); ctx.scale(S.scale, S.scale);
   if (tr === 'rufus') ctx.translate(Math.sin(t*70)*2.2, Math.cos(t*55)*1.2);   // big shake
   if (tr === 'gracie'){ ctx.translate(0, -26); ctx.rotate(-(o.spin || 0)*1.5); ctx.scale(.85, .85); ctx.translate(0, 26); }   // tucks into a rolling ball
+  if (tr === 'casey'){ ctx.translate(0, -18); ctx.scale(1.15, .82); ctx.translate(0, 18); }   // belly flop: spreads out flat
   if (tr === 'winnie'){ ctx.translate(0, -20); ctx.scale(.9, .9); ctx.translate(0, 20); }
   // --- scarf (behind) ---
   const SC = scarfOf(o.scarf || gear.scarf);
@@ -1329,6 +1335,8 @@ function drawCrew(t, o){
   if (S.tail === 'thin'){
     ctx.strokeStyle = FUR; ctx.lineWidth = 4.5; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-6, -12, -1, -22); ctx.stroke();
+  } else if (S.tail === 'stub'){
+    ctx.fillStyle = FUR; ctx.beginPath(); ctx.ellipse(-1, -4, 3.6, 5, -.3, 0, Math.PI*2); ctx.fill();
   } else if (S.tail === 'pom'){
     ctx.strokeStyle = FUR_D; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-1, -12); ctx.stroke();
     curls([[-1,-18,1.1],[-6,-15,.9],[4,-15,.9],[-4,-22,.85],[3,-22,.85],[0,-25,.8]], 5, FUR);
@@ -1342,7 +1350,7 @@ function drawCrew(t, o){
   ctx.restore();
   // --- body ---
   ctx.save(); ctx.translate(-2, by - 4);
-  ctx.fillStyle = FUR; ctx.beginPath(); ctx.ellipse(0, 0, 22, 13 - crouch*1.5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = FUR; ctx.beginPath(); ctx.ellipse(0, S.bully ? 1 : 0, S.bully ? 23 : 22, (S.bully ? 15 : 13) - crouch*1.5, 0, 0, Math.PI*2); ctx.fill();   // bulldogs are stockier
   ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(0, 6, 19, 6.5, 0, 0, Math.PI*2); ctx.fill();
   if (S.curly){
     curls([[-14,-6],[-6,-9],[3,-9],[12,-6],[-17,2],[-8,1],[1,0],[10,2],[-11,8],[0,8],[11,7]], 4.6, FUR_L);
@@ -1358,7 +1366,8 @@ function drawCrew(t, o){
   // back ear
   ctx.fillStyle = EAR;
   ctx.save(); ctx.translate(-2, -6); ctx.rotate(.5 + (air ? -.6 : 0) + Math.sin(t*12)*.12);
-  ctx.beginPath(); ctx.ellipse(0, 9, 6, 12, 0, 0, Math.PI*2); ctx.fill(); ctx.restore();
+  if (S.bully){ ctx.beginPath(); ctx.ellipse(0, 2, 5.5, 6, 0, 0, Math.PI*2); ctx.fill(); } else { ctx.beginPath(); ctx.ellipse(0, 9, 6, 12, 0, 0, Math.PI*2); ctx.fill(); }
+  ctx.restore();
   // skull
   ctx.fillStyle = FUR; ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI*2); ctx.fill();
   if (S.curly){
@@ -1370,6 +1379,19 @@ function drawCrew(t, o){
   }
   if (S.patch){ ctx.fillStyle = S.patch; ctx.beginPath(); ctx.ellipse(5.5, -4, 6, 6.5, .2, 0, Math.PI*2); ctx.fill(); }
   if (S.blaze){ ctx.fillStyle = S.blaze; ctx.beginPath(); ctx.moveTo(1, -13); ctx.quadraticCurveTo(9, -10, 11, -2); ctx.lineTo(6, 0); ctx.quadraticCurveTo(3, -7, -2, -12); ctx.closePath(); ctx.fill(); }
+  if (S.mask){ ctx.fillStyle = S.mask; ctx.beginPath(); ctx.ellipse(6.5, -2.5, 4.6, 4.2, 0, 0, Math.PI*2); ctx.fill(); }
+  if (S.bully){ // big jowly bulldog face
+    ctx.fillStyle = S.snout; ctx.beginPath(); ctx.ellipse(10, 6, 10, 8.5, .05, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = S.muzzle; ctx.beginPath(); ctx.ellipse(9, 10, 9, 5, .05, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(120,80,50,.45)'; ctx.lineWidth = 1.1; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(10, 2); ctx.quadraticCurveTo(13, -1, 17, 1); ctx.stroke();                 // nose wrinkle
+    ctx.beginPath(); ctx.moveTo(-1, -9); ctx.quadraticCurveTo(3, -11, 7, -9); ctx.stroke();               // brow wrinkle
+    ctx.fillStyle = '#4a2a20'; ctx.beginPath(); ctx.ellipse(13, 9.5, 4.5, 1.6, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(11, 9.5); ctx.lineTo(12, 7.2); ctx.lineTo(13, 9.5); ctx.fill();   // underbite teeth
+    ctx.beginPath(); ctx.moveTo(14.5, 9.5); ctx.lineTo(15.5, 7.2); ctx.lineTo(16.5, 9.5); ctx.fill();
+    ctx.fillStyle = '#1b1411'; ctx.beginPath(); ctx.ellipse(16.5, 1.5, 3.8, 3, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(15.6, .5, .9, 0, Math.PI*2); ctx.fill();
+  } else {
   // snout / beard
   ctx.fillStyle = S.snout; ctx.beginPath(); ctx.ellipse(11, 4, 9, 7.5, .05, 0, Math.PI*2); ctx.fill();
   if (S.muzzle){ ctx.fillStyle = S.muzzle; ctx.beginPath(); ctx.ellipse(13, 7, 7.5, 4.5, .05, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = S.snout; ctx.beginPath(); ctx.ellipse(10, 2, 6, 3.5, 0, 0, Math.PI*2); ctx.fill(); }
@@ -1377,8 +1399,9 @@ function drawCrew(t, o){
   // nose
   ctx.fillStyle = '#1b1411'; ctx.beginPath(); ctx.ellipse(19, 0, 4, 3.3, 0, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(18, -1.2, 1, 0, Math.PI*2); ctx.fill();
+  }
   // mouth (little open smile with tongue when going fast / airborne)
-  if (air || sp > 520){
+  if ((air || sp > 520) && !S.bully){
     ctx.fillStyle = '#5a2a1a'; ctx.beginPath(); ctx.ellipse(13, 8, 4, 2.6, 0, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = '#ff7d8f'; ctx.beginPath(); ctx.ellipse(12.5, 10 + Math.sin(t*20), 2.6, 2.4, 0, 0, Math.PI*2); ctx.fill();
   }
@@ -1391,7 +1414,8 @@ function drawCrew(t, o){
   // front ear: floppy, flaps in the wind
   ctx.fillStyle = EAR;
   ctx.save(); ctx.translate(-3, -5); ctx.rotate(.25 + (air ? -1.0 : -.2*Math.min(1, sp/600)) + Math.sin(t*13)*.18);
-  ctx.beginPath(); ctx.ellipse(-2, 9, S.curly ? 6.5 : 7, S.curly ? 12.5 : 13.5, .1, 0, Math.PI*2); ctx.fill();
+  if (S.bully){ ctx.beginPath(); ctx.ellipse(-3, -5, 4.2, 4.8, -.5, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = 'rgba(255,190,170,.55)'; ctx.beginPath(); ctx.ellipse(-2.4, -4.4, 2, 2.6, -.5, 0, Math.PI*2); ctx.fill(); }   // little rose ear, folded back
+  else { ctx.beginPath(); ctx.ellipse(-2, 9, S.curly ? 6.5 : 7, S.curly ? 12.5 : 13.5, .1, 0, Math.PI*2); ctx.fill(); }
   if (S.curly) curls([[-3,14,.8],[0,18,.7],[-5,8,.7]], 3.4, S.earCurl || FUR);
   ctx.restore();
   // scarf wrapped around the neck
