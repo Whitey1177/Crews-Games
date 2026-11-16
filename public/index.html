@@ -110,6 +110,12 @@ html,body{height:100%;background:#1d2a44;font-family:ui-rounded,"SF Pro Rounded"
 #start .cta{margin-top:8px;padding:10px 34px}
 #start .cta2{margin-top:6px;padding:6px 12px;font-size:14px}
 #bestStart{display:none}
+/* ads: keep-riding offer + test ad overlay */
+.cbar{height:6px;background:#f0e2cc;border-radius:3px;margin-top:12px;overflow:hidden}.cbar div{height:100%;width:100%;background:#ff8a3d;border-radius:3px}
+#adov{position:fixed;inset:0;z-index:60;background:#111;color:#fff;display:none;align-items:center;justify-content:center;text-align:center;font-family:inherit}
+#adov.show{display:flex}.adbox{padding:24px}.adtag{display:inline-block;background:#ffd23f;color:#111;font-weight:900;font-size:12px;border-radius:6px;padding:3px 8px;letter-spacing:.08em}
+.adlogo{font-size:64px;margin:18px 0 6px}.adtxt{font-size:22px;font-weight:900}.adsub{opacity:.6;font-size:13px;margin-top:8px;font-weight:700}
+#adClose{margin-top:22px;font:inherit;font-weight:900;font-size:16px;background:#fff;color:#111;border:none;border-radius:12px;padding:10px 18px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -136,6 +142,14 @@ html,body{height:100%;background:#1d2a44;font-family:ui-rounded,"SF Pro Rounded"
   <p id="bestStart" style="font-size:13px;opacity:.7"></p>
 </div></div>
 
+<div class="ov" id="cont"><div class="card">
+  <h2>Keep riding?</h2>
+  <p>Watch a short ad and <b id="contDog">Crew</b> hops right back on the board.</p>
+  <button class="cta" id="contYes">🎬 Watch ad &amp; keep riding</button><br>
+  <button class="cta2" id="contNo">No thanks</button>
+  <div class="cbar"><div id="contBar"></div></div>
+</div></div>
+<div id="adov"><div class="adbox"><div class="adtag">TEST AD</div><div class="adlogo">🐾</div><div class="adtxt" id="adTxt"></div><div class="adsub">Real ads only appear in the iPhone app</div><button id="adClose" style="display:none">✕ Close</button></div></div>
 <div class="ov" id="over"><div class="card">
   <h2 id="overTitle">Wipeout!</h2>
   <div class="tiles"><div class="tile"><div class="tl">📏 Distance</div><div class="tv" id="fDist">0 m</div></div><div class="tile"><div class="tl">⭐ Run score</div><div class="tv red" id="finalScore">0</div></div></div>
@@ -709,6 +723,7 @@ const Music = (() => {
     restart(){ if (!on || !ac || !setup()) return; use(skinId); step = 0; nextT = ac.currentTime + .08;
       out.gain.cancelScheduledValues(ac.currentTime); out.gain.setValueAtTime(VOL, ac.currentTime); paused = false; this.start(); },
     fadeOut(){ if (!out || !ac) return; out.gain.setTargetAtTime(0.0001, ac.currentTime, .25); paused = true; },
+    resume(){ if (!on || !out || !ac) return; paused = false; nextT = ac.currentTime + .05; out.gain.setTargetAtTime(VOL, ac.currentTime, .2); this.start(); },
     get on(){ return on; },
     title: id => (SONGS[id] || SONGS.crew).title,
     genre: id => (SONGS[id] || SONGS.crew).genre,
@@ -803,9 +818,16 @@ addEventListener('pointerup', release); addEventListener('pointercancel', releas
 addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if ((e.key === ' ' || e.key === 'ArrowUp') && !e.repeat){ if ($('shop').classList.contains('show')) return; if (state !== 'play' && $('start').classList.contains('show')) startGame(); else press(); } });
 addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'ArrowUp') release(); });
 
-function startGame(){ ensureAudio(); Music.restart(); reset(); best = bestOf(skinId); state = 'play'; holding = false; runStat = {}; justDone = [];
+function startGame(){ ensureAudio(); Music.restart(); reset(); runContinued = false; best = bestOf(skinId); state = 'play'; holding = false; runStat = {}; justDone = [];
   ['start','over','paused'].forEach(id => $(id).classList.remove('show')); $('hud').style.display = 'flex'; sfx.bark(); }
-$('go').onclick = startGame; $('again').onclick = startGame;
+$('go').onclick = startGame;
+// an occasional ad between runs (every 4th "Ride again"), skipped right after a keep-riding ad
+let ridesSinceAd = 0;
+$('again').onclick = () => {
+  ridesSinceAd++;
+  if (ridesSinceAd >= 4 && !runContinued && Ads.on()){ ridesSinceAd = 0; Music.fadeOut(); Ads.show('interstitial').then(startGame); }
+  else startGame();
+};
 $('musicBtn').onclick = e => { e.stopPropagation(); Music.toggle(); syncMusicBtns(); };
 $('musicStart').onclick = () => { Music.toggle(); syncMusicBtns(); };
 function renderDogs(){
@@ -874,14 +896,14 @@ function spray(n, x, y, vx, vy, col='#ffffff'){
   for (let i=0;i<n;i++) parts.push({x, y, vx: vx + (Math.random()-.5)*120, vy: vy - Math.random()*120, life: .4 + Math.random()*.4, r: 1.5 + Math.random()*2.5, c: col});
 }
 function crash(){
-  if (P.crash) return;
+  if (P.crash || P.shield > 0) return;
   if (P.endX == null) P.endX = P.x;
   P.rail = null;
   P.crash = true; P.cr = 0; P.vx = Math.max(P.speed, 200)*Math.cos(P.rot); P.vy = -260; P.ground = false;
   sfx.crash(); spray(30, P.x, P.y, 0, -50);
   if (state === 'play'){
     state = 'dying';
-    setTimeout(endGame, 1300);
+    setTimeout(offerContinue, 1300);
   }
 }
 // Leaderboard on the wipeout screen: shows the board of whichever dog is selected.
@@ -892,6 +914,61 @@ function showRunBoard(){
   const mine = skinId === lastRun.skin;
   CrewBoard.show('lb', 'adventure-m-' + skinId, mine ? lastRun.dist : 0, ' m',
     {title: SKINS[skinId].name + "'s leaderboard", note: mine ? '' : `Play as ${SKINS[skinId].name} to post here`});
+}
+// ---------- ads ----------
+// In the iPhone app the game asks the app to show a real AdMob ad; in the Claude preview it shows a test ad;
+// on the public website ads are switched off (no keep-riding offer, no ads between runs).
+const Ads = (() => {
+  const native = !!window.ReactNativeWebView;
+  const web = /pages\.dev$|crews-games/.test(location.hostname);
+  let done = null;
+  window.__pupAdDone = ok => { if (done){ const d = done; done = null; d(!!ok); } };
+  function demo(kind){
+    return new Promise(res => {
+      const ov = $('adov'), close = $('adClose'); let n = kind === 'rewarded' ? 5 : 3;
+      ov.classList.add('show'); close.style.display = 'none';
+      const tick = () => {
+        if (n > 0){ $('adTxt').textContent = kind === 'rewarded' ? `Reward in ${n}…` : `Ad · ${n}`; n--; setTimeout(tick, 1000); return; }
+        if (kind === 'rewarded'){ $('adTxt').textContent = '✅ Reward earned!'; setTimeout(() => { ov.classList.remove('show'); res(true); }, 700); }
+        else { $('adTxt').textContent = 'Thanks for playing!'; close.style.display = 'inline-block'; close.onclick = () => { ov.classList.remove('show'); res(true); }; }
+      };
+      tick();
+    });
+  }
+  return {
+    on: () => native || !web,
+    show(kind){
+      if (native) return new Promise(res => { done = res; window.ReactNativeWebView.postMessage(JSON.stringify({type: 'ad', kind})); setTimeout(() => window.__pupAdDone(false), 90000); });
+      return demo(kind);
+    },
+  };
+})();
+let runContinued = false, contTimer = null;
+function offerContinue(){
+  if (runContinued || !Ads.on()) return endGame();
+  state = 'offer'; $('contDog').textContent = SKINS[skinId].name;
+  $('cont').classList.add('show');
+  const bar = $('contBar'); bar.style.transition = 'none'; bar.style.width = '100%';
+  requestAnimationFrame(() => { bar.style.transition = 'width 6s linear'; bar.style.width = '0%'; });
+  clearTimeout(contTimer); contTimer = setTimeout(() => { if (state === 'offer') declineContinue(); }, 6000);
+}
+function declineContinue(){ clearTimeout(contTimer); $('cont').classList.remove('show'); endGame(); }
+function acceptContinue(){
+  clearTimeout(contTimer); $('cont').classList.remove('show'); state = 'ad'; Music.fadeOut();
+  Ads.show('rewarded').then(ok => ok ? resumeRun() : endGame());
+}
+$('contYes').onclick = e => { e.stopPropagation(); acceptContinue(); };
+$('contNo').onclick = e => { e.stopPropagation(); declineContinue(); };
+['pointerdown','touchstart'].forEach(ev => $('cont').addEventListener(ev, e => e.stopPropagation()));
+function resumeRun(){
+  runContinued = true;
+  P.crash = false; P.caughtBy = false; P.endX = null; P.rail = null; P.cr = 0;
+  P.y = groundY(P.x); P.rot = slopeAt(P.x); P.ground = true; P.vx = 0; P.vy = 0; P.airT = 0; P.flipAcc = 0; P.airJumps = 0;
+  P.speed = Math.max(P.speed || 0, minSpd() + 60); P.shield = 2.5;
+  objs.forEach(o => { if (o.type === 'rock' && o.x > P.x - 60 && o.x < P.x + 700) o.gone = true; });   // clear the rock that got you
+  if (C){ C.x = Math.min(C.x, P.x - 1100); C.net = 0; }                                                       // and give you a head start on the catcher
+  state = 'play'; holding = false; $('hud').style.display = 'flex';
+  pop('Back on the board! 🐾', P.x + 60, P.y - 70, '#bfe8ff'); sfx.bark(); Music.resume();
 }
 function endGame(){
   state = 'over';
@@ -1045,15 +1122,16 @@ function updateCatcher(dt){
   C.vy += GRAV*dt; C.hop = Math.min(0, C.hop + C.vy*dt); if (C.hop >= 0){ C.hop = 0; C.vy = Math.min(0, C.vy); if (C.vy === 0 && Math.random() < spd/900) spray(1, C.x - 20, groundY(C.x) - 2, -spd*.25, -40); }
   C.net = Math.max(0, Math.min(1, 1 - (gap - 68)/220));
   if (!P.crash && !P.caughtBy && state === 'play') stat('chase', Math.floor(C.t), true);
-  if (!C.giveUp && !P.crash && !P.caughtBy && gap < 68){
+  if (!C.giveUp && !P.crash && !P.caughtBy && !(P.shield > 0) && gap < 68){
     // caught!
     P.caughtBy = true; P.crash = false; if (P.endX == null) P.endX = P.x; P.speed = 0; P.vx = 0; P.vy = 0;
     sfx.crash(); pop('Caught by the dog catcher!', P.x + VW*.26, P.y - 100, '#ff6b6b');
-    if (state === 'play'){ state = 'dying'; setTimeout(endGame, 1500); }
+    if (state === 'play'){ state = 'dying'; setTimeout(offerContinue, 1500); }
   }
 }
 function step(dt){
   const demo = state === 'start';
+  if (P.shield > 0) P.shield -= dt;
   P.crouch = Math.max(0, P.crouch - dt*3);
   if (P.caughtBy){ updateCatcher(dt); return; }
   if (P.crash){
