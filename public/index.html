@@ -923,6 +923,9 @@ const Ads = (() => {
   const web = /pages\.dev$|crews-games/.test(location.hostname);
   let done = null;
   window.__pupAdDone = ok => { if (done){ const d = done; done = null; d(!!ok); } };
+  const personalized = () => { try { const c = window.CrewConsent && CrewConsent.get(); return !!(c && c.adult && c.personalizedAds); } catch(e){ return false; } };
+  if (native){ const tell = () => window.ReactNativeWebView.postMessage(JSON.stringify({type: 'consent', personalized: personalized()}));
+    setTimeout(tell, 500); document.addEventListener('crewconsent', tell); }
   function demo(kind){
     return new Promise(res => {
       const ov = $('adov'), close = $('adClose'); let n = kind === 'rewarded' ? 5 : 3;
@@ -938,7 +941,7 @@ const Ads = (() => {
   return {
     on: () => native || !web,
     show(kind){
-      if (native) return new Promise(res => { done = res; window.ReactNativeWebView.postMessage(JSON.stringify({type: 'ad', kind})); setTimeout(() => window.__pupAdDone(false), 90000); });
+      if (native) return new Promise(res => { done = res; window.ReactNativeWebView.postMessage(JSON.stringify({type: 'ad', kind, npa: !personalized()})); setTimeout(() => window.__pupAdDone(false), 90000); });
       return demo(kind);
     },
   };

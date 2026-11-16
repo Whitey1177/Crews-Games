@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
 import { PAGES } from './games';
 import { SITE_URL } from './config';
+import { initAds, showAd, setPersonalized } from './ads';
 
 // Each game is packed inside the app. It runs as if it lived at SITE_URL/<page>/,
 // so saved progress works and the leaderboard posts to your Netlify site.
@@ -22,6 +23,16 @@ export default function App() {
   const [page, setPage] = useState('home');
   const [hash, setHash] = useState('');
   const web = useRef(null);
+  useEffect(() => { initAds(); }, []);
+  const onMessage = useCallback(async (e) => {
+    let m; try { m = JSON.parse(e.nativeEvent.data); } catch { return; }
+    if (m.type === 'consent') setPersonalized(!!m.personalized);
+    if (m.type === 'ad') {
+      setPersonalized(!m.npa);
+      const ok = await showAd(m.kind === 'interstitial' ? 'interstitial' : 'rewarded');
+      web.current?.injectJavaScript(`window.__pupAdDone && window.__pupAdDone(${ok ? 'true' : 'false'}); true;`);
+    }
+  }, []);
 
   const go = useCallback((url) => {
     const p = pageFor(url);
@@ -48,6 +59,7 @@ export default function App() {
         source={{ html: PAGES[page], baseUrl: SITE_URL + BASE[page] + hash }}
         onShouldStartLoadWithRequest={(req) => req.url.startsWith('about:') || req.url.startsWith('data:') || req.url === SITE_URL + BASE[page] + hash ? true : go(req.url)}
         onOpenWindow={(e) => go(e.nativeEvent.targetUrl)}
+        onMessage={onMessage}
         javaScriptEnabled
         domStorageEnabled
         allowsInlineMediaPlayback

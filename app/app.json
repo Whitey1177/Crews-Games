@@ -18,7 +18,8 @@
       "requireFullScreen": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "UIStatusBarHidden": true
+        "UIStatusBarHidden": true,
+        "NSUserTrackingUsageDescription": "This lets Pup Slope show you ads that are more relevant to you. You can still play either way."
       }
     },
     "android": {
@@ -27,6 +28,15 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffb347"
       }
-    }
+    },
+    "plugins": [
+      [
+        "react-native-google-mobile-ads",
+        {
+          "iosAppId": "ca-app-pub-3731881236858467~2914110279",
+          "userTrackingUsageDescription": "This lets Pup Slope show you ads that are more relevant to you. You can still play either way."
+        }
+      ]
+    ]
   }
 }
