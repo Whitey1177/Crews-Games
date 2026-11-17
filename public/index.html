@@ -127,7 +127,7 @@ html,body{height:100%;background:#1d2a44;font-family:ui-rounded,"SF Pro Rounded"
 <div id="vig"></div>
 <div id="hud" style="display:none">
   <div><div class="l"><span id="dist">0 m</span><span class="rs">⭐ <span id="runScore">0</span></span></div><div class="s" id="scoreTxt">High Score 0 m</div></div>
-  <div class="r"><div>🦴 <span id="treats">0</span></div><div class="zbtns"><button class="hb" id="zoomOut" aria-label="Zoom out">－</button><button class="hb" id="zoomIn" aria-label="Zoom in">＋</button><button class="hb musicBtn" id="musicBtn" aria-label="Music on/off">🎵</button><button class="hb" id="pauseBtn" aria-label="Pause">⏸</button></div></div>
+  <div class="r"><div>🦴 <span id="treats">0</span></div><div class="zbtns"><button class="hb musicBtn" id="musicBtn" aria-label="Music on/off">🎵</button><button class="hb" id="pauseBtn" aria-label="Pause">⏸</button></div></div>
 </div>
 
 <div id="zlbl"></div>
@@ -271,7 +271,23 @@ const showBest = () => { best = bestOf(skinId); const nm = SKINS[skinId].name; $
 
 // ================= sound =================
 let ac = null;
-function ensureAudio(){ if (!ac){ try { ac = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){} } if (ac && ac.state === 'suspended') ac.resume().catch(()=>{}); if (ac && typeof Music !== 'undefined') Music.start(); }
+function ensureAudio(){ unlockIOSAudio(); if (!ac){ try { ac = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){} } if (ac && ac.state !== 'running' && ac.state !== 'closed') ac.resume().catch(()=>{}); if (ac && typeof Music !== 'undefined') Music.start(); }
+// iPhones mute web audio when the ring/silent switch is on. Asking for "playback" audio (and quietly playing
+// a silent sound once) makes the music and sound effects play like a normal game would.
+let iosUnlocked = false;
+function unlockIOSAudio(){
+  if (iosUnlocked) return; iosUnlocked = true;
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch(e){}
+  try {
+    const n = 4410, buf = new ArrayBuffer(44 + n*2), v = new DataView(buf), w = (o, str) => { for (let i=0;i<str.length;i++) v.setUint8(o+i, str.charCodeAt(i)); };
+    w(0,'RIFF'); v.setUint32(4, 36 + n*2, true); w(8,'WAVE'); w(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+    v.setUint32(24,44100,true); v.setUint32(28,88200,true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,'data'); v.setUint32(40, n*2, true);
+    const el = new Audio(URL.createObjectURL(new Blob([buf], {type: 'audio/wav'}))); el.setAttribute('playsinline', ''); el.loop = true;
+    el.play().catch(() => { iosUnlocked = false; });
+  } catch(e){}
+}
+['pointerdown','touchend','keydown'].forEach(ev => addEventListener(ev, () => { if (ac && ac.state !== 'running' && ac.state !== 'closed') ac.resume().catch(()=>{}); }, true));
+document.addEventListener('visibilitychange', () => { if (!document.hidden && ac && ac.state !== 'running' && ac.state !== 'closed') ac.resume().catch(()=>{}); });
 function tone(f1, f2, dur, type='sine', vol=.1, delay=0){
   if (!ac) return;
   try {
@@ -1432,7 +1448,8 @@ function drawCrew(t, o){
   if (SC) drawScarfTail(SC, t, 6, -40 + squat + bob, 26 + Math.min(22, sp/38));
   // --- legs ---
   const by = -26 + squat + bob;
-  ctx.lineCap = 'round'; ctx.strokeStyle = S.curly ? FUR_D : FUR; ctx.lineWidth = S.curly ? 7 : 6;
+  ctx.lineCap = 'round'; ctx.lineWidth = S.curly ? 7 : 6;
+  const LEG = S.curly ? FUR_D : FUR, LEG_FAR = mixc(LEG, '#000000', .18);
   const legs = [[-15, -17], [-8, -11], [9, 9], [15, 15]];
   const feet = [];
   legs.forEach(([hx, fx], k) => {
@@ -1440,10 +1457,14 @@ function drawCrew(t, o){
     let ex = fx + kick, ey = -7, cx = hx + (k<2?-4:4)*crouch, cy = (by + 6 - 6)/2 - 2;
     if (tr === 'dixie'){ ex = k < 2 ? hx - 26 : hx + 28; ey = by + 2; cx = (hx + ex)/2; cy = by + 6; }      // superdog: legs stretched out
     if (tr === 'scout' && k === 3){ ex = 28; ey = -6; cx = 26; cy = by + 2; }                                // reaches down to grab the board nose
+    ctx.strokeStyle = k % 2 === 0 ? LEG_FAR : LEG;
     ctx.beginPath(); ctx.moveTo(hx, by + 6); ctx.quadraticCurveTo(cx, cy, ex, ey); ctx.stroke();
     feet.push([ex, ey]);
   });
-  ctx.fillStyle = S.paws || FUR_D; for (const [ex, ey] of feet){ ctx.beginPath(); ctx.ellipse(ex + 1, ey, 5, 3, 0, 0, Math.PI*2); ctx.fill(); }
+  for (const [ex, ey] of feet){
+    ctx.fillStyle = S.paws || FUR_D; ctx.beginPath(); ctx.ellipse(ex + 1, ey, 5.2, 3.2, 0, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = .8; ctx.beginPath(); ctx.moveTo(ex + 2.5, ey - 2); ctx.lineTo(ex + 3, ey + .8); ctx.moveTo(ex + 4.6, ey - 1.6); ctx.lineTo(ex + 5, ey + .8); ctx.stroke();
+  }
   // --- tail (wagging) ---
   const wag = tr === 'crew' ? t*25 : Math.sin(t*(air ? 22 : 14))*0.5;
   ctx.save(); ctx.translate(-20, by - 6); ctx.rotate(-.9 + wag*.6);
@@ -1465,16 +1486,22 @@ function drawCrew(t, o){
   ctx.restore();
   // --- body ---
   ctx.save(); ctx.translate(-2, by - 4);
-  ctx.fillStyle = FUR; ctx.beginPath(); ctx.ellipse(0, S.bully ? 1 : 0, S.bully ? 23 : 22, (S.bully ? 15 : 13) - crouch*1.5, 0, 0, Math.PI*2); ctx.fill();   // bulldogs are stockier
+  { const bh = (S.bully ? 15 : 13) - crouch*1.5, g = ctx.createLinearGradient(0, -bh, 0, bh);
+    g.addColorStop(0, FUR_L); g.addColorStop(.45, FUR); g.addColorStop(1, FUR_D);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, S.bully ? 1 : 0, S.bully ? 23 : 22, bh, 0, 0, Math.PI*2); ctx.fill();   // bulldogs are stockier
+    ctx.strokeStyle = 'rgba(40,20,10,.22)'; ctx.lineWidth = 1.2; ctx.stroke(); }
   ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(0, 6, 19, 6.5, 0, 0, Math.PI*2); ctx.fill();
   if (S.curly){
     curls([[-14,-6],[-6,-9],[3,-9],[12,-6],[-17,2],[-8,1],[1,0],[10,2],[-11,8],[0,8],[11,7]], 4.6, FUR_L);
     if (S.patch){ curls([[-14,-3,1.1],[-9,-6,.9],[-17,3,.8],[-10,2,.8]], 5, S.patch); curls([[-13,-5,.5],[-11,1,.5]], 4, '#8b8486'); }
     else curls([[-10,-3,.5],[5,-3,.5],[-3,5,.5]], 4, 'rgba(163,100,44,.25)');
   } else {
-    ctx.fillStyle = 'rgba(255,255,255,.1)'; ctx.beginPath(); ctx.ellipse(-2, -7, 15, 4, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.beginPath(); ctx.ellipse(-2, -7, 15, 4, 0, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = mixc(FUR, '#000000', .25); ctx.lineWidth = .9; ctx.lineCap = 'round';      // little fur strokes
+    for (const [x, y] of [[-12, -2], [-6, 1], [0, -1], [6, 2], [-9, 5]]){ ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 2.5, y + 2.5); ctx.stroke(); }
   }
-  if (S.chest){ ctx.fillStyle = S.chest; ctx.beginPath(); ctx.ellipse(17, 2, 6, 8, -.3, 0, Math.PI*2); ctx.fill(); }
+  if (S.chest){ ctx.fillStyle = S.chest; ctx.beginPath(); ctx.ellipse(17, 2, 6, 8, -.3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(15, 8); ctx.lineTo(17, 12); ctx.lineTo(19, 8); ctx.lineTo(21, 11); ctx.lineTo(21.5, 6); ctx.fill(); }   // fluffy chest tuft
   ctx.restore();
   // --- head ---
   ctx.save(); ctx.translate(16, by - 20 + crouch*2); ctx.rotate(air ? -.08 : Math.sin(t*5)*.03);
@@ -1484,7 +1511,9 @@ function drawCrew(t, o){
   if (S.bully){ ctx.beginPath(); ctx.ellipse(0, 2, 5.5, 6, 0, 0, Math.PI*2); ctx.fill(); } else { ctx.beginPath(); ctx.ellipse(0, 9, 6, 12, 0, 0, Math.PI*2); ctx.fill(); }
   ctx.restore();
   // skull
-  ctx.fillStyle = FUR; ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI*2); ctx.fill();
+  { const g = ctx.createRadialGradient(-3, -6, 2, 0, 0, 14); g.addColorStop(0, FUR_L); g.addColorStop(.6, FUR); g.addColorStop(1, mixc(FUR, FUR_D, .6));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(40,20,10,.22)'; ctx.lineWidth = 1.1; ctx.stroke(); }
   if (S.curly){
     curls([[-8,-9],[-2,-12],[5,-11],[10,-6],[-11,-2]], 4.5, FUR_L);
     curls([[-4,-8,.7],[3,-7,.6]], 3.5, FUR_LL);
@@ -1513,7 +1542,9 @@ function drawCrew(t, o){
   if (S.curly) curls([[6,9],[11,10],[15,8]], 3.6, FUR_LL);
   // nose
   ctx.fillStyle = '#1b1411'; ctx.beginPath(); ctx.ellipse(19, 0, 4, 3.3, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(18, -1.2, 1, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(20.6, .9, 1, .7, .4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.beginPath(); ctx.ellipse(17.8, -1.3, 1.5, .9, -.3, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(40,20,10,.35)'; ctx.lineWidth = .9; ctx.beginPath(); ctx.moveTo(18.5, 3.2); ctx.quadraticCurveTo(17, 6.5, 13.5, 6.8); ctx.stroke();   // little smile line
   }
   // mouth (little open smile with tongue when going fast / airborne)
   if ((air || sp > 520) && !S.bully){
@@ -1522,15 +1553,23 @@ function drawCrew(t, o){
   }
   // eye (with blink)
   const blink = (t % 3.2) < .12 ? .15 : 1;
-  ctx.fillStyle = S.curly ? '#1b1411' : '#3a2416'; ctx.beginPath(); ctx.ellipse(6.5, -3, 2.4, 2.8*blink, 0, 0, Math.PI*2); ctx.fill();
-  if (blink > .5){ ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(7.3, -4, .9, 0, Math.PI*2); ctx.fill(); }
+  ctx.fillStyle = S.curly ? '#1b1411' : '#2b1a10'; ctx.beginPath(); ctx.ellipse(6.6, -3, 2.8, 3.2*blink, 0, 0, Math.PI*2); ctx.fill();
+  if (blink > .5){
+    ctx.fillStyle = 'rgba(120,70,40,.55)'; ctx.beginPath(); ctx.ellipse(6.4, -2, 1.8, 1.6, 0, 0, Math.PI*2); ctx.fill();   // warm iris glow
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(7.6, -4.3, 1.1, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(5.6, -1.6, .5, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.strokeStyle = 'rgba(40,20,10,.45)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(4, -7.2); ctx.quadraticCurveTo(6.6, -8.6, 9.2, -7.4); ctx.stroke();   // brow
+  ctx.fillStyle = 'rgba(255,130,140,.22)'; ctx.beginPath(); ctx.ellipse(9, 2.5, 3, 1.8, 0, 0, Math.PI*2); ctx.fill();   // cheek blush
   // brow fluff
   if (S.curly && !S.patch) curls([[4,-8,.8],[8,-8,.7]], 3, FUR);
   // front ear: floppy, flaps in the wind
   ctx.fillStyle = EAR;
   ctx.save(); ctx.translate(-3, -5); ctx.rotate(.25 + (air ? -1.0 : -.2*Math.min(1, sp/600)) + Math.sin(t*13)*.18);
   if (S.bully){ ctx.beginPath(); ctx.ellipse(-3, -5, 4.2, 4.8, -.5, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = 'rgba(255,190,170,.55)'; ctx.beginPath(); ctx.ellipse(-2.4, -4.4, 2, 2.6, -.5, 0, Math.PI*2); ctx.fill(); }   // little rose ear, folded back
-  else { ctx.beginPath(); ctx.ellipse(-2, 9, S.curly ? 6.5 : 7, S.curly ? 12.5 : 13.5, .1, 0, Math.PI*2); ctx.fill(); }
+  else { ctx.beginPath(); ctx.ellipse(-2, 9, S.curly ? 6.5 : 7, S.curly ? 12.5 : 13.5, .1, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(40,20,10,.25)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(-.5, 12, 3.2, 8, .1, 0, Math.PI*2); ctx.fill(); }
   if (S.curly) curls([[-3,14,.8],[0,18,.7],[-5,8,.7]], 3.4, S.earCurl || FUR);
   ctx.restore();
   // scarf wrapped around the neck
@@ -1627,45 +1666,69 @@ function drawHat(type, t, air){
 function drawCatcher(t, net){
   // origin = board centre, facing right
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  // board
-  ctx.fillStyle = '#3a3a3a'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
+  const bob = Math.sin(t*9)*1.5, OUT = 'rgba(15,20,35,.55)';
+  // board: dark with orange warning stripes
+  ctx.fillStyle = '#2f3542'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(-34, -2); ctx.quadraticCurveTo(-40, -2, -39, -7); ctx.lineTo(-34, -5); ctx.lineTo(34, -5); ctx.lineTo(39, -7); ctx.quadraticCurveTo(40, -2, 34, -2); ctx.closePath(); ctx.fill(); ctx.stroke();
-  const bob = Math.sin(t*9)*1.5;
-  // legs (navy trousers), knees bent
-  ctx.strokeStyle = '#25324d'; ctx.lineWidth = 8;
-  ctx.beginPath(); ctx.moveTo(-12, -6); ctx.lineTo(-4, -26 + bob); ctx.lineTo(-6, -46 + bob); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(14, -6); ctx.lineTo(16, -26 + bob); ctx.lineTo(4, -46 + bob); ctx.stroke();
-  ctx.fillStyle = '#111'; ctx.beginPath(); ctx.ellipse(-12, -6, 6, 3, 0, 0, Math.PI*2); ctx.ellipse(14, -6, 6, 3, 0, 0, Math.PI*2); ctx.fill();
-  // torso: uniform jacket with hi-vis stripe
-  ctx.save(); ctx.translate(0, -60 + bob); ctx.rotate(.12);
-  ctx.fillStyle = '#3d5a99'; ctx.beginPath(); ctx.ellipse(0, 0, 13, 20, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#d7ff3a'; ctx.fillRect(-13, 2, 26, 4);
-  ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(6, -8, 3, 0, Math.PI*2); ctx.fill();   // badge
-  ctx.restore();
+  ctx.fillStyle = '#ff8a1f'; for (const x of [-22, -6, 10, 26]){ ctx.beginPath(); ctx.moveTo(x, -5); ctx.lineTo(x + 6, -5); ctx.lineTo(x + 3, -2); ctx.lineTo(x - 3, -2); ctx.fill(); }
+  // legs: padded snow pants, knees bent, chunky boots
+  const leg = (hx, hy, kx, ky, fx, fy, col) => { ctx.strokeStyle = OUT; ctx.lineWidth = 10.5; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
+    ctx.strokeStyle = col; ctx.lineWidth = 8.5; ctx.stroke(); };
+  leg(-6, -46 + bob, -4, -26 + bob, -12, -9, '#1f2a44');
+  leg(4, -46 + bob, 16, -26 + bob, 14, -9, '#2a3758');
+  for (const x of [-12, 14]){ ctx.fillStyle = '#151515'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x - 7, -11, 15, 7, 3) : ctx.rect(x - 7, -11, 15, 7); ctx.fill();
+    ctx.fillStyle = '#5a4030'; ctx.fillRect(x - 6, -6, 13, 2); }
   // back arm
-  ctx.strokeStyle = '#2f4880'; ctx.lineWidth = 6;
-  ctx.beginPath(); ctx.moveTo(-6, -70 + bob); ctx.lineTo(-16, -56 + bob); ctx.lineTo(-24, -50 + bob); ctx.stroke();
-  // head
-  ctx.fillStyle = '#f0c29a'; ctx.beginPath(); ctx.arc(4, -88 + bob, 10, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#3a2a1e'; ctx.beginPath(); ctx.ellipse(-4, -86 + bob, 4, 7, 0, 0, Math.PI*2); ctx.fill();          // hair at back
-  ctx.fillStyle = '#1b1411'; ctx.beginPath(); ctx.arc(9, -89 + bob, 1.6, 0, Math.PI*2); ctx.fill();                     // eye
-  ctx.strokeStyle = '#7a3a2a'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(8, -82 + bob); ctx.lineTo(13, -83 + bob); ctx.stroke(); // determined mouth
-  ctx.strokeStyle = '#3a2a1e'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(6, -94 + bob); ctx.lineTo(12, -92 + bob); ctx.stroke(); // brow
-  // cap
-  ctx.fillStyle = '#25324d'; ctx.beginPath(); ctx.ellipse(3, -96 + bob, 11, 6, 0, Math.PI, 0); ctx.fill();
-  ctx.fillRect(3, -97 + bob, 14, 3);
-  ctx.fillStyle = '#ffd23f'; ctx.fillRect(1, -100 + bob, 4, 3);
+  ctx.strokeStyle = OUT; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(-6, -70 + bob); ctx.lineTo(-16, -56 + bob); ctx.lineTo(-24, -50 + bob); ctx.stroke();
+  ctx.strokeStyle = '#2c4579'; ctx.lineWidth = 6.5; ctx.stroke();
+  ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(-25, -49 + bob, 3.6, 0, Math.PI*2); ctx.fill();   // glove
+  // torso: puffy uniform jacket with reflective stripes, belt and badge
+  ctx.save(); ctx.translate(0, -60 + bob); ctx.rotate(.12);
+  const jg = ctx.createLinearGradient(-14, -20, 14, 20); jg.addColorStop(0, '#5677c2'); jg.addColorStop(1, '#2c4579');
+  ctx.fillStyle = jg; ctx.strokeStyle = OUT; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.ellipse(0, 0, 14, 21, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1; for (const y of [-10, -3]){ ctx.beginPath(); ctx.moveTo(-12, y); ctx.quadraticCurveTo(0, y + 3, 12, y); ctx.stroke(); }   // puffy seams
+  ctx.fillStyle = '#d7ff3a'; ctx.fillRect(-14, 4, 28, 3.5); ctx.fillStyle = '#c0c8d0'; ctx.fillRect(-14, 5, 28, 1.2);                                         // hi-vis + reflective
+  ctx.fillStyle = '#1e1e1e'; ctx.fillRect(-13, 11, 26, 4); ctx.fillStyle = '#c9a227'; ctx.fillRect(-2, 11, 4, 4);                                                 // belt + buckle
+  ctx.fillStyle = '#5a4030'; ctx.fillRect(7, 9, 6, 8);                                                                                                            // pouch
+  ctx.fillStyle = '#ffd23f'; ctx.beginPath(); for (let i=0;i<5;i++){ const a = -Math.PI/2 + i*Math.PI*2/5, r = 3.6; ctx.lineTo(6 + Math.cos(a)*r, -9 + Math.sin(a)*r); ctx.lineTo(6 + Math.cos(a + Math.PI/5)*1.6, -9 + Math.sin(a + Math.PI/5)*1.6); } ctx.closePath(); ctx.fill();   // star badge
+  ctx.strokeStyle = '#d23a3a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(-9, -17); ctx.quadraticCurveTo(0, -12, 9, -17); ctx.stroke();                   // scarf
+  ctx.restore();
+  // scarf tail flapping behind
+  ctx.strokeStyle = '#d23a3a'; ctx.lineWidth = 3.2; ctx.beginPath(); ctx.moveTo(-6, -76 + bob); ctx.quadraticCurveTo(-16, -78 + bob + Math.sin(t*14)*3, -26, -74 + bob + Math.sin(t*14 + 1)*4); ctx.stroke();
+  // head: ear, stubble, nose, angry brow, goggles pushed up on the cap
+  const hx = 4, hy = -88 + bob;
+  ctx.fillStyle = '#e9b98f'; ctx.strokeStyle = OUT; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(hx, hy, 10.5, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#d9a37a'; ctx.beginPath(); ctx.arc(hx - 4, hy + 1, 2.8, 0, Math.PI*2); ctx.fill();                                    // ear
+  ctx.fillStyle = 'rgba(70,50,40,.35)'; ctx.beginPath(); ctx.ellipse(hx + 5, hy + 6, 6, 3.6, -.2, 0, Math.PI*2); ctx.fill();             // stubble
+  ctx.fillStyle = '#d9967a'; ctx.beginPath(); ctx.ellipse(hx + 10.5, hy + 1, 2.6, 2.2, 0, 0, Math.PI*2); ctx.fill();                     // nose (red from the cold)
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(hx + 6, hy - 1.5, 2.4, 2, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#1b1411'; ctx.beginPath(); ctx.arc(hx + 6.8, hy - 1.3, 1.3, 0, Math.PI*2); ctx.fill();                                 // eye
+  ctx.strokeStyle = '#3a2a1e'; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(hx + 2.5, hy - 6.5); ctx.lineTo(hx + 9.5, hy - 4); ctx.stroke();   // angry brow
+  ctx.strokeStyle = '#7a3a2a'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(hx + 4, hy + 6); ctx.quadraticCurveTo(hx + 7, hy + 4.5 + (net > .5 ? -1.5 : 0), hx + 10, hy + 5.5); ctx.stroke();   // grimace / grin when close
+  // winter cap with brim + goggles
+  ctx.fillStyle = '#1f2a44'; ctx.beginPath(); ctx.ellipse(hx - 1, hy - 7, 11.5, 7, 0, Math.PI, 0); ctx.fill();
+  ctx.fillRect(hx - 1, hy - 8.5, 16, 3.2);
+  ctx.fillStyle = '#ffd23f'; ctx.fillRect(hx - 6, hy - 11.5, 5, 3);                                                                       // patch
+  ctx.fillStyle = '#111'; ctx.fillRect(hx - 11, hy - 10.5, 21, 2.4);
+  const lg = ctx.createLinearGradient(hx, hy - 14, hx, hy - 8); lg.addColorStop(0, '#9be7ff'); lg.addColorStop(1, '#ff7ad9');
+  ctx.fillStyle = lg; ctx.strokeStyle = '#111'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(hx + 2, hy - 12, 6, 3.4, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();   // goggles
   // front arm + net pole swinging forward as he closes in
   const swing = -.9 + net*.9 + Math.sin(t*6)*.12;
   ctx.save(); ctx.translate(6, -70 + bob); ctx.rotate(swing);
-  ctx.strokeStyle = '#3d5a99'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(16, 10); ctx.stroke();
-  ctx.strokeStyle = '#8a6a3a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(10, 8); ctx.lineTo(62, 24); ctx.stroke();
+  ctx.strokeStyle = OUT; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(16, 10); ctx.stroke();
+  ctx.strokeStyle = '#3f5fa8'; ctx.lineWidth = 6.5; ctx.stroke();
+  ctx.fillStyle = '#d7ff3a'; ctx.save(); ctx.translate(9, 5.6); ctx.rotate(.56); ctx.fillRect(-1.5, -3.6, 3, 7.2); ctx.restore();          // sleeve stripe
+  const pg = ctx.createLinearGradient(10, 8, 62, 24); pg.addColorStop(0, '#a07a44'); pg.addColorStop(1, '#6e5230');
+  ctx.strokeStyle = pg; ctx.lineWidth = 3.4; ctx.beginPath(); ctx.moveTo(10, 8); ctx.lineTo(62, 24); ctx.stroke();
+  ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(16, 10, 3.8, 0, Math.PI*2); ctx.fill();                                                 // glove on the pole
   // net hoop + mesh
   ctx.save(); ctx.translate(74, 27); ctx.rotate(.3);
-  ctx.strokeStyle = '#cfcfcf'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(0, 0, 13, 15, 0, 0, Math.PI*2); ctx.stroke();
-  ctx.strokeStyle = 'rgba(230,230,230,.75)'; ctx.lineWidth = 1;
-  for (let k=-9;k<=9;k+=6){ ctx.beginPath(); ctx.moveTo(k, -14); ctx.quadraticCurveTo(k*1.2, 4, k*.4, 22); ctx.stroke(); }
-  for (let k=-10;k<=12;k+=7){ ctx.beginPath(); ctx.moveTo(-12, k); ctx.quadraticCurveTo(0, k + 8, 12, k); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(230,240,255,.18)'; ctx.beginPath(); ctx.ellipse(0, 4, 12, 16, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(235,235,235,.8)'; ctx.lineWidth = 1;
+  for (let k=-9;k<=9;k+=4.5){ ctx.beginPath(); ctx.moveTo(k, -14); ctx.quadraticCurveTo(k*1.2, 4, k*.4, 22); ctx.stroke(); }
+  for (let k=-10;k<=14;k+=5){ ctx.beginPath(); ctx.moveTo(-12, k); ctx.quadraticCurveTo(0, k + 8, 12, k); ctx.stroke(); }
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(0, 0, 13, 15, 0, 0, Math.PI*2); ctx.stroke();
+  ctx.strokeStyle = '#e8e8e8'; ctx.lineWidth = 2.2; ctx.stroke();
   ctx.restore();
   ctx.restore();
 }
@@ -1674,7 +1737,7 @@ function drawCatcher(t, net){
 let VW = 600, VH = 400, scale = 1, dpr = 1, baseVW = 500;
 // player-chosen zoom (bigger number = see more) + automatic zoom-out to keep the ground in view
 const ZOOMS = [.7, .85, 1, 1.2, 1.45, 1.75];
-let zi = 2; try { const z = +localStorage.getItem('crewadv-zoom'); if (z >= 0 && z < ZOOMS.length) zi = z; } catch(e){}
+const zi = 3;   // fixed at "Wide" for everyone (players can't change it); the game still zooms out by itself when you're high in the air
 let autoZ = 1;
 function applyView(){
   const w = innerWidth, h = innerHeight;
@@ -1687,16 +1750,6 @@ function resize(){
   cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
   applyView();
 }
-let zt = 0;
-function setZoom(d){
-  zi = Math.max(0, Math.min(ZOOMS.length-1, zi + d));
-  try { localStorage.setItem('crewadv-zoom', zi); } catch(e){}
-  const l = $('zlbl'); l.textContent = '🔍 ' + ['Closest','Close','Normal','Wide','Wider','Widest'][zi]; l.style.opacity = 1;
-  clearTimeout(zt); zt = setTimeout(() => l.style.opacity = 0, 700);
-}
-$('zoomIn').onclick = e => { e.stopPropagation(); setZoom(-1); };
-$('zoomOut').onclick = e => { e.stopPropagation(); setZoom(1); };
-addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === '-' ) setZoom(1); if (e.key === '=' || e.key === '+') setZoom(-1); });
 const mix2 = (a, b) => { const p = c => c.startsWith('#') ? hex(c) : c.match(/\d+/g).map(Number); const A = p(a), B = p(b); return `rgb(${A.map((v,i)=>Math.round((v+B[i])/2)).join(',')})`; };
 function ridge(x, s){ const a = Math.sin(x*.0035 + s), b = Math.sin(x*.009 + s*2); return Math.pow(Math.abs(a), .7)*95 + Math.abs(b)*35 + Math.sin(x*.027 + s*3)*6; }
 function drawSky(pal, night){

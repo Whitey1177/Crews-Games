@@ -5,6 +5,7 @@ import { WebView } from 'react-native-webview';
 import { PAGES } from './games';
 import { SITE_URL } from './config';
 import { initAds, showAd, setPersonalized } from './ads';
+import { setAudioModeAsync } from 'expo-audio';
 import * as GC from './modules/game-center';
 import { leaderboardId, challengeId, DOGS } from './gamecenter-ids';
 
@@ -25,7 +26,7 @@ export default function App() {
   const [page, setPage] = useState('home');
   const [hash, setHash] = useState('');
   const web = useRef(null);
-  useEffect(() => { initAds(); }, []);
+  useEffect(() => { initAds(); setAudioModeAsync({ playsInSilentMode: true }).catch(() => {}); }, []);   // music plays even with the silent switch on
   const tellGame = (js) => web.current?.injectJavaScript(js + '; true;');
   const signIn = useCallback(async () => {
     const ok = await GC.authenticate();
