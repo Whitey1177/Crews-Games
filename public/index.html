@@ -383,8 +383,8 @@ const SCARVES = [
 ];
 const scarfOf = id => SCARVES.find(s => s.id === id && s.c) || null;
 // flowing striped scarf tail with fringe; x0,y0 = where it leaves the neck, flows to the left (behind)
-function drawScarfTail(sc, t, x0, y0, len, wave = 1){
-  const pts = []; for (let k=0;k<=8;k++){ pts.push([x0 - k*len/8, y0 + Math.sin(t*16 - k*.9)*k*.75*wave + k*1.1]); }
+function drawScarfTail(sc, t, x0, y0, len, wave = 1, drop = 1.1){
+  const pts = []; for (let k=0;k<=8;k++){ pts.push([x0 - k*len/8, y0 + Math.sin(t*16 - k*.9)*k*.75*wave + k*drop]); }
   ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.strokeStyle = 'rgba(40,20,20,.35)'; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(...pts[0]); for (const p of pts) ctx.lineTo(...p); ctx.stroke();
   ctx.lineCap = 'butt'; ctx.lineWidth = 7;
@@ -396,6 +396,26 @@ function drawScarfTail(sc, t, x0, y0, len, wave = 1){
   ctx.restore();
 }
 // band wrapped around the neck with a knot and a short hanging end; drawn in head coordinates
+function drawScarfCollar(sc, t, x, y){
+  ctx.save(); ctx.translate(x, y); ctx.rotate(-.45);
+  // band around the neck
+  ctx.fillStyle = 'rgba(40,20,20,.3)'; ctx.beginPath(); ctx.ellipse(0, 0, 6.8, 11.2, 0, 0, Math.PI*2); ctx.fill();
+  ctx.save(); ctx.beginPath(); ctx.ellipse(0, 0, 6, 10.4, 0, 0, Math.PI*2); ctx.clip();
+  for (let k=-4;k<=4;k++){ ctx.fillStyle = sc.c[(k + 12) % sc.c.length]; ctx.fillRect(-7, k*3 - 1.5, 14, 3.2); }
+  ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fillRect(-7, -11, 2.5, 22);
+  ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(3.5, -11, 3.5, 22);
+  ctx.restore();
+  ctx.restore();
+  // knot on the chest + short end hanging down and swinging a little
+  const kx = x + 6, ky = y + 7, sw = Math.sin(t*9)*1.6;
+  ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(40,20,20,.3)'; ctx.lineWidth = 6.5; ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(kx + 1 + sw, ky + 11); ctx.stroke();
+  ctx.lineCap = 'butt'; ctx.lineWidth = 5;
+  for (let k=0;k<3;k++){ ctx.strokeStyle = sc.c[k % sc.c.length]; ctx.beginPath(); ctx.moveTo(kx + (1 + sw)*k/3, ky + k*11/3); ctx.lineTo(kx + (1 + sw)*(k + 1)/3, ky + (k + 1)*11/3); ctx.stroke(); }
+  ctx.strokeStyle = sc.c[0]; ctx.lineWidth = 1.3; ctx.lineCap = 'round';
+  for (const o of [-1.6, 0, 1.6]){ ctx.beginPath(); ctx.moveTo(kx + 1 + sw + o, ky + 11); ctx.lineTo(kx + 1 + sw*1.2 + o, ky + 14); ctx.stroke(); }   // fringe
+  ctx.fillStyle = sc.c[0]; ctx.strokeStyle = 'rgba(40,20,20,.4)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(kx, ky, 3.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  if (sc.c[1]){ ctx.fillStyle = sc.c[1]; ctx.beginPath(); ctx.arc(kx - .6, ky - .6, 1.2, 0, Math.PI*2); ctx.fill(); }
+}
 function drawScarfWrap(sc, t, x, y, s = 1){
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.rotate(-.3);
   ctx.fillStyle = 'rgba(40,20,20,.3)'; ctx.beginPath(); ctx.ellipse(0, .6, 9, 5.2, 0, 0, Math.PI*2); ctx.fill();
@@ -1445,7 +1465,7 @@ function drawCrew(t, o){
   if (tr === 'winnie'){ ctx.translate(0, -20); ctx.scale(.9, .9); ctx.translate(0, 20); }
   // --- scarf (behind) ---
   const SC = scarfOf(o.scarf || gear.scarf);
-  if (SC) drawScarfTail(SC, t, 6, -40 + squat + bob, 26 + Math.min(22, sp/38));
+  if (SC) drawScarfTail(SC, t, 10, -26 + squat + bob - 17 + crouch*2, 22 + Math.min(20, sp/40), air ? 1.3 : 1, -1.5);   // ends streaming back from the neck, behind the body
   // --- legs ---
   const by = -26 + squat + bob;
   ctx.lineCap = 'round'; ctx.lineWidth = S.curly ? 7 : 6;
@@ -1503,6 +1523,8 @@ function drawCrew(t, o){
   if (S.chest){ ctx.fillStyle = S.chest; ctx.beginPath(); ctx.ellipse(17, 2, 6, 8, -.3, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.moveTo(15, 8); ctx.lineTo(17, 12); ctx.lineTo(19, 8); ctx.lineTo(21, 11); ctx.lineTo(21.5, 6); ctx.fill(); }   // fluffy chest tuft
   ctx.restore();
+  // --- scarf: ends fly back over the shoulders, band wraps the neck under the chin (head is drawn on top) ---
+  if (SC) drawScarfCollar(SC, t, 12, by - 8 + crouch*2);
   // --- head ---
   ctx.save(); ctx.translate(16, by - 20 + crouch*2); ctx.rotate(air ? -.08 : Math.sin(t*5)*.03);
   // back ear
@@ -1572,8 +1594,6 @@ function drawCrew(t, o){
     ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(-.5, 12, 3.2, 8, .1, 0, Math.PI*2); ctx.fill(); }
   if (S.curly) curls([[-3,14,.8],[0,18,.7],[-5,8,.7]], 3.4, S.earCurl || FUR);
   ctx.restore();
-  // scarf wrapped around the neck
-  if (SC) drawScarfWrap(SC, t, -6, 12);
   drawHat(o.hat || gear.hat, t, air);
   ctx.restore();
   ctx.restore();
